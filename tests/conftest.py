@@ -1,16 +1,14 @@
 import pytest
+import pytest_asyncio
 import asyncio
+import sys
+from pathlib import Path
 from typing import AsyncGenerator
-from httpx import AsyncClient
-from app.main import app
-from app.core.database import get_db, Base
-from config import settings
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
+from httpx import ASGITransport, AsyncClient
 
-# Use a separate test database or the dev one? For now, use existing env but be careful
-# Ideally, we mock the DB or use a test container, but for this audit fix, we'll assume dev DB connectivity
-DATABASE_URL = settings.database_url
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
 @pytest.fixture(scope="session")
 def event_loop():
@@ -19,21 +17,30 @@ def event_loop():
     yield loop
     loop.close()
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session")
 async def db_engine():
-    engine = create_async_engine(DATABASE_URL, echo=False)
+    from config import settings
+    from sqlalchemy.ext.asyncio import create_async_engine
+
+    engine = create_async_engine(settings.database_url, echo=False)
     yield engine
     await engine.dispose()
 
-@pytest.fixture(scope="function")
-async def db(db_engine) -> AsyncGenerator[AsyncSession, None]:
+@pytest_asyncio.fixture(scope="function")
+async def db(db_engine) -> AsyncGenerator:
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from sqlalchemy.orm import sessionmaker
+
     async_session = sessionmaker(
         db_engine, class_=AsyncSession, expire_on_commit=False
     )
     async with async_session() as session:
         yield session
 
-@pytest.fixture(scope="function")
+@pytest_asyncio.fixture(scope="function")
 async def client() -> AsyncGenerator[AsyncClient, None]:
-    async with AsyncClient(app=app, base_url="http://test") as c:
+    from app.main import app
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as c:
         yield c

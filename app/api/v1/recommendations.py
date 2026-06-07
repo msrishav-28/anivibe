@@ -62,7 +62,7 @@ async def personalized_recommendations(
 ):
     """
     Get personalized recommendations for current user
-    Uses hybrid system: collaborative filtering + content-based + GNN
+    Uses the current hybrid system: collaborative filtering + content-based scoring
     """
     user_id = UUID(current_user["id"])
     
@@ -94,7 +94,7 @@ async def similar_anime(
 ):
     """
     Find anime similar to a given anime
-    Uses multimodal features (CLIP + BERT + metadata)
+    Uses content-based similarity in the current implementation
     """
     try:
         results = await get_similar_anime(

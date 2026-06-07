@@ -1,0 +1,25 @@
+anime_id,title,synopsis,genres,studios,type,episodes,score,members,year,image_url
+1,Fullmetal Alchemist Brotherhood,Two brothers search for the philosopher stone after a failed alchemy ritual,Action|Adventure|Drama|Fantasy,Bones,TV,64,9.1,3300000,2009,https://example.com/anime/1.jpg
+2,Steins Gate,A group of friends discover time travel and face the cost of changing fate,Sci-Fi|Thriller|Drama,White Fox,TV,24,9.0,2500000,2011,https://example.com/anime/2.jpg
+3,Death Note,A brilliant student uses a supernatural notebook and enters a battle of minds,Thriller|Supernatural|Psychological,Madhouse,TV,37,8.6,3900000,2006,https://example.com/anime/3.jpg
+4,Cowboy Bebop,Bounty hunters drift through space while confronting unfinished pasts,Action|Sci-Fi|Drama,Sunrise,TV,26,8.8,1900000,1998,https://example.com/anime/4.jpg
+5,Attack on Titan,Humanity fights giant creatures while uncovering political and historical secrets,Action|Drama|Mystery,MAPPA,TV,75,8.7,3700000,2013,https://example.com/anime/5.jpg
+6,Your Lie in April,A pianist rediscovers music through a violinist with a bright spirit,Drama|Romance|Music,A-1 Pictures,TV,22,8.6,1700000,2014,https://example.com/anime/6.jpg
+7,Haikyuu,A short volleyball player joins a team chasing national competition,Sports|Comedy|Drama,Production I.G,TV,85,8.5,1600000,2014,https://example.com/anime/7.jpg
+8,Kaguya-sama Love Is War,Two student council leaders wage romantic mind games,Comedy|Romance|School,A-1 Pictures,TV,37,8.7,1500000,2019,https://example.com/anime/8.jpg
+9,Violet Evergarden,A former soldier learns emotion by writing letters for others,Drama|Fantasy|Slice of Life,Kyoto Animation,TV,13,8.7,1200000,2018,https://example.com/anime/9.jpg
+10,Made in Abyss,Children descend into a dangerous abyss filled with mystery and wonder,Adventure|Drama|Fantasy,Kinema Citrus,TV,13,8.6,1000000,2017,https://example.com/anime/10.jpg
+11,Vinland Saga,A young warrior is pulled into revenge politics and the cost of violence,Action|Adventure|Drama|Historical,MAPPA,TV,48,8.8,1300000,2019,https://example.com/anime/11.jpg
+12,Demon Slayer,A boy joins demon hunters after his family is destroyed,Action|Adventure|Supernatural,ufotable,TV,55,8.5,2900000,2019,https://example.com/anime/12.jpg
+13,Jujutsu Kaisen,A student enters a world of curses and dangerous sorcery,Action|Supernatural|School,MAPPA,TV,47,8.6,2600000,2020,https://example.com/anime/13.jpg
+14,Mob Psycho 100,A quiet psychic boy learns emotional maturity and self-control,Action|Comedy|Supernatural,Bones,TV,37,8.7,1800000,2016,https://example.com/anime/14.jpg
+15,March Comes in Like a Lion,A young shogi player navigates loneliness family and recovery,Drama|Slice of Life,Shaft,TV,44,8.9,650000,2016,https://example.com/anime/15.jpg
+16,A Silent Voice,A former bully seeks forgiveness from a deaf classmate he hurt,Drama|Romance|School,Kyoto Animation,Movie,1,8.9,2100000,2016,https://example.com/anime/16.jpg
+17,Psycho-Pass,Inspectors police a future society that quantifies criminal intent,Sci-Fi|Thriller|Psychological,Production I.G,TV,22,8.3,1100000,2012,https://example.com/anime/17.jpg
+18,Gurren Lagann,Rebels pilot giant machines and push beyond impossible limits,Action|Adventure|Sci-Fi,Gainax,TV,27,8.6,1300000,2007,https://example.com/anime/18.jpg
+19,Barakamon,A calligrapher moves to an island and learns from its community,Comedy|Slice of Life,Kinema Citrus,TV,12,8.4,500000,2014,https://example.com/anime/19.jpg
+20,Mushishi,A traveler studies quiet supernatural lifeforms and their human effects,Adventure|Mystery|Slice of Life,Artland,TV,46,8.7,800000,2005,https://example.com/anime/20.jpg
+21,Naruto,A lonely ninja trains to earn respect and protect his village,Action|Adventure|Comedy,Pierrot,TV,220,8.0,2800000,2002,https://example.com/anime/21.jpg
+22,One Piece,A pirate crew sails for treasure freedom and found family,Action|Adventure|Comedy,Toei Animation,TV,1000,8.7,2600000,1999,https://example.com/anime/22.jpg
+23,Fruits Basket,A girl becomes involved with a family under a strange curse,Drama|Romance|Slice of Life,TMS Entertainment,TV,63,8.6,1000000,2019,https://example.com/anime/23.jpg
+24,Spy x Family,A spy an assassin and a telepath build a fake family with real affection,Action|Comedy|Slice of Life,Wit Studio,TV,37,8.4,1700000,2022,https://example.com/anime/24.jpg

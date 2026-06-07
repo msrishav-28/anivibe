@@ -1,154 +1,207 @@
-# AniVibe: Neo-Tokyo Edition
+# AniVibe - Hybrid Anime Recommender Benchmark
 
-<div align="center">
+AniVibe is a reproducible anime recommendation system that compares popularity,
+content-based, collaborative filtering, and hybrid recommenders on anime metadata
+and user-rating data. The project focuses on recommender-system fundamentals,
+evaluation metrics, backend API design, and clear ML engineering documentation.
 
-![AniVibe Banner](https://img.shields.io/badge/AniVibe-Neo--Tokyo_Protocol-8B5CF6?style=for-the-badge)
+## Problem Statement
 
-[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.109-009688.svg?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![Next.js](https://img.shields.io/badge/Next.js-14.1-black.svg?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.3-3178C6.svg?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38B2AC.svg?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+Given a user's historical anime ratings, rank unseen anime that the user is
+likely to enjoy. The project is structured as an engineering portfolio artifact,
+not as a production SaaS product.
 
-[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL_15-3ECF8E.svg?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com/)
-[![pgvector](https://img.shields.io/badge/pgvector-Vector_Search-2CA5E0.svg?style=for-the-badge&logo=postgresql&logoColor=white)](https://github.com/pgvector/pgvector)
-[![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED.svg?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
+The core technical goals are:
 
-**AI-Powered Anime Discovery & "Ethereal" Watchlist Platform**
+- define a clean anime and ratings data contract
+- prepare deterministic train, validation, and test splits
+- implement simple baselines before advanced models
+- evaluate recommendations with recommender-system metrics
+- keep the ML core reproducible without cloud services
+- use the backend and frontend only after the recommender layer is credible
 
-</div>
+## Current Status
 
----
+| Area | Status | Notes |
+| --- | --- | --- |
+| Offline data contract | Implemented | Canonical `anime`, `ratings`, and split files |
+| Sample dataset | Implemented | Small fixture under `data/sample/` for reproducibility |
+| Popularity baseline | Implemented | Cold-start and sanity-check baseline |
+| Content-based baseline | Implemented | TF-IDF over metadata features |
+| Collaborative filtering baseline | Implemented | Item-item rating-behavior baseline |
+| Hybrid baseline | Implemented | Weighted blend of baseline scores |
+| Offline evaluation | Implemented | Precision@K, Recall@K, NDCG@K, MAP@K, HitRate@K, coverage, diversity, latency |
+| FastAPI backend | Existing, not yet cleaned | Next layer should expose a small recommender API |
+| Next.js frontend | Existing, optional | Not part of the core portfolio proof yet |
+| SBERT, CLIP, BERT4Rec, GNN | Planned or experimental | Kept on roadmap but not claimed as benchmarked |
 
-## Project DNA: "It's Not a Database, It's a World"
+## Quick Start
 
-**AniVibe** is not just another anime tracking list. It is a **$50,000 valued** "Digital Dark Academia" experience designed to immerse users in a **Neo-Tokyo** interface.
-
-*   **Aesthetic:** Deep AMOLED Black (`#050505`), Film Grain overlays, and Holographic UI cards.
-*   **Physics:** Framer Motion "Kinetic Snappiness" (Spring 400/25).
-*   **Discoverability:** We don't use keywords. We use **Vectors**.
-
----
-
-## Real AI Features (No Mocks)
-
-> [!IMPORTANT]
-> The AI features in this project are **LIVE** and rely on **Supabase pgvector** and **Modal** GPU microservices.
-> *   **Visual Search**: Active (Uses CLIP via Modal)
-> *   **Vibe Search**: Active (Uses SBERT via Supabase)
-> *   **Recommendations**: Active (Hybrid Engine)
-
-### 1. Semantic Vibe Search
-Type: *"A cyberpunk city with rain and neon lights"*
-*   **Tech**: **SBERT (Sentence-BERT)** generates a 384-dimensional vector from your query.
-*   **Vector DB**: Queries **Supabase** using Cosine Distance (`<=>`) to find anime mentions or clusters that match that *exact* vibe.
-
-### 2. Reverse Image Search
-Upload a screenshot.
-*   **Tech**: **OpenAI CLIP (ViT-B-32)** runs on a GPU (via Modal).
-*   **Process**: Converts image pixels -> 512-dim embedding -> Finds nearest anime poster in the vector space.
-
-### 3. Hybrid Recommendations
-*   **Collaborative Filtering**: "Users who liked X also liked Y."
-*   **Content-Based**: Genre/Tag matching.
-*   **Hidden Gems**: A specialized algorithm that mathematically penalizes "Popularity" to surface high-rated, under-watched masterpieces.
-
----
-
-## Architecture
-
-```mermaid
-graph TD
-    Client(Next.js Frontend) -->|REST API| API(FastAPI Backend)
-    
-    subgraph "Infrastructure"
-        API -->|Auth & Data| DB[(Supabase PostgreSQL)]
-        DB -->|Vector Search| PGVector(pgvector Ext)
-        API -->|Cache| Redis(Redis 7)
-    end
-    
-    subgraph "AI Microservices"
-        API -->|RPC| Modal(Modal GPU Service)
-        Modal -->|CLIP Inference| GPU[NVIDIA T4]
-    end
-```
-
-### Tech Stack Breakdown
-| Component | Technology | Why? |
-| :--- | :--- | :--- |
-| **Frontend** | **Next.js 14 + Tailwind** | Server-side rendering for SEO, Framer Motion for premium feel. |
-| **Backend** | **FastAPI (Python)** | High-performance async API, native Pydantic integration. |
-| **Database** | **Supabase** | Managed PostgreSQL with Auth and `pgvector` built-in. |
-| **Vectors** | **SBERT + CLIP** | State-of-the-art semantic text and image understanding. |
-| **Infra** | **Docker + Render** | Portable, distinct containerization. |
-
----
-
-## Quick Start (Production Ready)
-
-### Prerequisites
-*   Docker & Docker Compose
-*   Supabase Account (Active Project)
-*   Microservice (Modal) Account (Optional, for Image Search)
-
-### 1. Environment Setup
-```bash
-cp .env.example .env
-```
-Fill in your **Supabase credentials**. The `DATABASE_URL` is optional if you provide `SUPABASE_URL` and `SUPABASE_DB_PASSWORD`.
-
-### 2. Run with Docker
-**Standard Mode (With Local ML):**
-```bash
-docker-compose up -d --build
-```
-**Lightweight Mode (Cloud-Only):**
-If you want to run like the free-tier production setup:
-```bash
-pip install -r requirements-lite.txt
-uvicorn app.main:app
-```
-*   **Frontend**: `http://localhost:3000`
-*   **Backend**: `http://localhost:8000`
-*   **Docs**: `http://localhost:8000/docs`
-
-### 3. Initialize Vectors
-The app needs the `vector` extension.
-```bash
-# Run Alembic migrations to set up schema and vector functions
-docker-compose exec backend alembic upgrade head
-```
-
----
-
-## Testing
-We maintain a strict testing culture for reliability.
+Use the lightweight benchmark environment if you only want to verify the core ML
+work:
 
 ```bash
-# Run backend tests
-docker-compose exec backend pytest
+pip install -r requirements-benchmark.txt
+python -m scripts.prepare_dataset --sample
+python -m scripts.evaluate_recommenders --config configs/eval.yaml
+python -m scripts.generate_report
 ```
 
----
+Or with `make`:
+
+```bash
+make install-benchmark
+make benchmark
+```
+
+Generated outputs are written to ignored local artifact paths:
+
+- `data/processed/`
+- `artifacts/evaluation/`
+- `artifacts/reports/offline_benchmark.md`
+
+## Sample Benchmark Results
+
+These numbers come from the checked-in sample fixture. They prove the evaluation
+pipeline works; they are not final research-quality claims.
+
+| Model | Precision@10 | Recall@10 | NDCG@10 | MAP@10 | HitRate@10 | Coverage | Diversity | Mean Latency |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| content_based | 0.1000 | 1.0000 | 0.8025 | 0.7417 | 1.0000 | 0.8333 | 0.8024 | 2.60 ms |
+| hybrid | 0.0875 | 0.8750 | 0.7413 | 0.6979 | 0.8750 | 0.8750 | 0.7848 | 1.26 ms |
+| collaborative_filtering | 0.0500 | 0.5000 | 0.1526 | 0.0576 | 0.5000 | 0.9583 | 0.7720 | 0.05 ms |
+| popularity | 0.0250 | 0.2500 | 0.0915 | 0.0451 | 0.2500 | 0.7500 | 0.7697 | 0.02 ms |
+
+## Dataset
+
+The benchmark uses two canonical CSV files:
+
+- `anime.csv`: anime metadata such as title, synopsis, genres, studios, score,
+  members, year, and image URL
+- `ratings.csv`: anonymous `user_id`, `anime_id`, rating, and timestamp
+
+`python -m scripts.prepare_dataset --sample` creates:
+
+- `data/processed/anime.csv`
+- `data/processed/ratings.csv`
+- `data/processed/train.csv`
+- `data/processed/validation.csv`
+- `data/processed/test.csv`
+- `data/processed/manifest.json`
+
+See [docs/dataset_card.md](docs/dataset_card.md) for the full schema and split
+strategy.
+
+## Recommendation Approaches
+
+| Model | Purpose |
+| --- | --- |
+| Popularity | Provides a cold-start and quality/popularity baseline |
+| Content-based | Recommends anime similar to the user's highly rated metadata profile |
+| Collaborative filtering | Uses item-item similarity from user-rating overlap |
+| Hybrid | Combines popularity, content, and collaborative scores |
+
+Advanced models remain on the roadmap, but they should be added only after they
+can run through the same evaluation harness:
+
+- matrix factorization/SVD
+- SBERT semantic search
+- CLIP visual search
+- BERT4Rec sequential recommendation
+- GNN recommendation
+- LLM-based explanations
+
+See [docs/model_card.md](docs/model_card.md).
+
+## Evaluation Methodology
+
+The default config is [configs/eval.yaml](configs/eval.yaml).
+
+- split: deterministic leave-last-two-out per user
+- relevant item: rating greater than or equal to `8.0`
+- ranking cutoff: `K=10`
+- reported metrics: Precision@K, Recall@K, NDCG@K, MAP@K, HitRate@K, coverage,
+  diversity, and mean latency
+
+This setup makes future models comparable because they must use the same data,
+same split, same relevance threshold, and same metrics.
+
+## Backend API Direction
+
+The repository already contains a FastAPI backend under `app/`, but the public
+portfolio path should be narrowed around the recommender engine. The next backend
+layer should expose:
+
+- `GET /health`
+- `GET /models`
+- `POST /recommend`
+- `POST /similar-anime`
+- `POST /evaluate`
+
+Auth, social features, reviews, dashboards, and account management are not part
+of the current portfolio proof.
 
 ## Project Structure
 
-```
+```text
 AniVibe/
-├── app/                  # FastAPI Backend
-│   ├── api/v1/           # Endpoints (Auth, Anime, Search)
-│   ├── core/             # Config, Security, Database
-│   ├── models/           # SQLAlchemy Models (with pgvector)
-│   └── services/         # Business Logic (Recommendations, Search)
-├── frontend/             # Next.js Frontend
-│   ├── src/components/   # Neo-Tokyo UI Components
-│   └── src/app/          # Pages & Routing
-├── modal_app.py          # AI Microservice (CLIP/GPU)
-├── alembic/              # Database Migrations
-└── docker-compose.yml    # Orchestration
+|-- recommender/              # Offline data, models, metrics, evaluation
+|-- scripts/
+|   |-- prepare_dataset.py    # Build canonical processed data and splits
+|   |-- evaluate_recommenders.py
+|   `-- generate_report.py
+|-- configs/
+|   `-- eval.yaml             # Reproducible benchmark config
+|-- data/
+|   `-- sample/               # Small checked-in reproducibility fixture
+|-- docs/
+|   |-- dataset_card.md
+|   |-- model_card.md
+|   `-- architecture.md
+|-- tests/
+|   `-- test_offline_recommender.py
+|-- app/                      # Existing FastAPI backend
+|-- frontend/                 # Existing Next.js frontend
+`-- README.md
 ```
 
----
+## Testing
+
+Run the offline recommender tests:
+
+```bash
+pytest tests/test_offline_recommender.py -q
+```
+
+Run the default test suite:
+
+```bash
+pytest tests/ -q
+```
+
+Database-backed API tests are disabled by default. Set `RUN_DB_TESTS=1` when a
+test database is available.
+
+## Limitations
+
+- The checked-in sample dataset is intentionally small.
+- Real portfolio claims require running the same benchmark on a larger public
+  ratings dataset.
+- The existing backend still contains product/SaaS routes that should be
+  cleaned in a later layer.
+- The frontend is not the current proof of technical quality.
+- Advanced models are roadmap items until they produce comparable metrics.
+
+## Next Layer
+
+The next recommended layer is the clean backend API:
+
+1. expose the offline recommender interface through FastAPI
+2. add request/response schemas for recommendation inputs and outputs
+3. add `/models` with honest implementation statuses
+4. add `/evaluate` as a local benchmark trigger or report reader
+5. keep auth/social/frontend out of the main README path until the API is stable
 
 ## License
-**MIT License**. Built for the "Ethereal Archive" initiative.
+
+MIT. See [LICENSE](LICENSE).

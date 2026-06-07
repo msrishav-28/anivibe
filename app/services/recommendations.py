@@ -1,6 +1,7 @@
 """
 Recommendation engine service
-Implements hybrid recommendation system: Collaborative + Content-Based + GNN
+Implements the database-backed hybrid recommendation path:
+collaborative filtering plus content-based scoring.
 """
 import time
 import logging
