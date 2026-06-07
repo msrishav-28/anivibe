@@ -1,17 +1,18 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { Search, Sparkles, Globe, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { GlitchText } from '@/components/ui/glitch-text';
-import { Input } from '@/components/ui/input';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
+import { VibeTuner } from '@/components/features/vibe-tuner';
+import { PersonalizedFeed } from '@/components/features/personalized-feed';
 
 export default function HomePage() {
-  const [searchQuery, setSearchQuery] = useState('');
+
+
 
   return (
     <div className="flex flex-col min-h-screen relative overflow-hidden">
@@ -42,43 +43,13 @@ export default function HomePage() {
           </p>
 
           {/* Vibe Tuner (Search Bar) */}
-          <div className="mx-auto max-w-3xl relative z-20">
-            <div className="relative group">
-              <div className="absolute -inset-1 bg-gradient-to-r from-primary-500 via-secondary to-primary-500 rounded-full opacity-20 group-hover:opacity-40 blur-lg transition duration-500" />
-              <Input
-                placeholder="Type a feeling... 'cyberpunk rain', 'healing slice of life', 'dark fantasy'"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onClear={() => setSearchQuery('')}
-                leftIcon={<Search className="h-5 w-5" />}
-                variant="vibe-tuner"
-                className="h-16 text-lg"
-              />
-              <Button
-                size="icon"
-                variant="spirit"
-                className="absolute right-2 top-2 h-12 w-12 rounded-full shadow-[0_0_15px_rgba(139,92,246,0.3)]"
-                onClick={() => {
-                  if (searchQuery) {
-                    window.location.href = `/search?q=${encodeURIComponent(searchQuery)}`;
-                  }
-                }}
-              >
-                <Search className="h-5 w-5" />
-              </Button>
-            </div>
-            <div className="mt-6 flex flex-wrap justify-center gap-4 text-sm text-muted-foreground/60 font-mono">
-              <span className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-success"></span>
-                CLIP Vision Model Active
-              </span>
-              <span className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-secondary"></span>
-                BERT Semantic Analysis Ready
-              </span>
-            </div>
-          </div>
+          <VibeTuner />
         </motion.div>
+      </section>
+
+      {/* Personalized Feed (Only visible if logged in, handled by component) */}
+      <section className="container-custom relative z-20 -mt-12 mb-24">
+        <PersonalizedFeed />
       </section>
 
       {/* Features Grid */}
@@ -124,9 +95,9 @@ export default function HomePage() {
                 <div className="h-12 w-12 rounded-lg bg-pink-500/10 flex items-center justify-center mb-4 text-pink-500 border border-pink-500/20 shadow-[0_0_15px_rgba(236,72,153,0.2)]">
                   <Globe className="h-6 w-6" />
                 </div>
-                <CardTitle className="text-white">3D Anime Atlas</CardTitle>
+                <CardTitle className="text-white">Weeb Cred</CardTitle>
                 <CardDescription>
-                  Explore the anime universe in a WebGL-powered 3D galaxy. Find hidden gems clustered near your favorites.
+                  Gamified tracking with GitHub-style heatmaps. Earn badges like "Shonen King" or "Isekai Survivor" based on your watch history.
                 </CardDescription>
               </CardHeader>
             </Card>

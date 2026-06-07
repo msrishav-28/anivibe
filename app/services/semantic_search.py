@@ -51,13 +51,17 @@ async def semantic_vibe_search(
     visual_results = {}
     if use_clip and parsed_query.get("visual_elements"):
         visual_query = " ".join(parsed_query["visual_elements"])
-        visual_results = await search_by_clip(visual_query, top_k=top_k * 2)
+        # search_by_clip might fallback to SBERT (db required) or use Modal
+        # For text-to-image search, we likely need SBERT fallback or a specific Modal endpoint not yet built
+        # Let's use search_by_sbert as a safe proxy if db is available
+        if db:
+             visual_results = await search_by_sbert(visual_query, top_k=top_k * 2, db=db)
     
     # Step 3: Perform text semantic search if SBERT enabled
     text_results = {}
-    if use_sbert:
+    if use_sbert and db:
         text_query = parsed_query.get("text_description", query)
-        text_results = await search_by_sbert(text_query, top_k=top_k * 2)
+        text_results = await search_by_sbert(text_query, top_k=top_k * 2, db=db)
     
     # Step 4: Combine results with weighted scoring
     combined_scores = {}

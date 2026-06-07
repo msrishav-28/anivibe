@@ -1,6 +1,6 @@
 # AniVibe Makefile
 
-.PHONY: help install dev test lint format clean docker-build docker-up docker-down migrate db-setup
+.PHONY: help install install-benchmark dev test test-benchmark lint format clean prepare-data evaluate benchmark-report benchmark docker-build docker-up docker-down migrate db-setup
 
 help:
 	@echo "AniVibe - Makefile Commands"
@@ -8,6 +8,10 @@ help:
 	@echo "install        - Install dependencies"
 	@echo "dev            - Run development server"
 	@echo "test           - Run tests"
+	@echo "test-benchmark - Run offline recommender tests"
+	@echo "prepare-data   - Prepare sample benchmark data"
+	@echo "evaluate       - Evaluate baseline recommenders"
+	@echo "benchmark      - Prepare data, evaluate models, and generate report"
 	@echo "lint           - Run linting"
 	@echo "format         - Format code"
 	@echo "clean          - Clean cache and build files"
@@ -20,11 +24,28 @@ help:
 install:
 	pip install -r requirements.txt
 
+install-benchmark:
+	pip install -r requirements-benchmark.txt
+
 dev:
 	uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 test:
 	pytest tests/ -v --cov=app --cov-report=html
+
+test-benchmark:
+	pytest tests/test_offline_recommender.py -v
+
+prepare-data:
+	python -m scripts.prepare_dataset --sample
+
+evaluate:
+	python -m scripts.evaluate_recommenders --config configs/eval.yaml
+
+benchmark-report:
+	python -m scripts.generate_report
+
+benchmark: prepare-data evaluate benchmark-report
 
 lint:
 	flake8 app/ --max-line-length=120

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { useIntersectionObserver } from '@/hooks/use-intersection-observer';
 import { AnimeCard } from './anime-card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -45,13 +46,32 @@ export function AnimeGrid({
 
   return (
     <div className={className}>
-      <div
+      <motion.div
         className='grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6'
+        variants={{
+          hidden: { opacity: 0 },
+          show: {
+            opacity: 1,
+            transition: {
+              staggerChildren: 0.05
+            }
+          }
+        }}
+        initial="hidden"
+        animate="show"
       >
         {anime.map((item) => (
-          <AnimeCard key={item.anime_id} anime={item} variant="grid" />
+          <motion.div
+            key={item.anime_id}
+            variants={{
+              hidden: { opacity: 0, y: 20 },
+              show: { opacity: 1, y: 0 }
+            }}
+          >
+            <AnimeCard anime={item} variant="grid" />
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
 
       {/* Loading More Indicator */}
       {isLoading && (

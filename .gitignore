@@ -57,6 +57,17 @@ data/processed/*
 data/embeddings/*
 data/faiss_indexes/*
 !data/.gitkeep
+!data/sample/
+!data/sample/*
+
+# Reproducible benchmark outputs
+artifacts/evaluation/*
+artifacts/reports/*
+!artifacts/.gitkeep
+!artifacts/evaluation/
+!artifacts/evaluation/.gitkeep
+!artifacts/reports/
+!artifacts/reports/.gitkeep
 
 # Models
 models/cache/*

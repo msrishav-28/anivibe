@@ -28,7 +28,7 @@ const config: Config = {
         ring: 'hsl(var(--ring))',
         background: 'hsl(var(--background))', // #050505
         foreground: 'hsl(var(--foreground))',
-        
+
         // Neo-Tokyo Palette
         primary: {
           DEFAULT: '#8B5CF6', // Spirit: Electric Violet
@@ -50,8 +50,8 @@ const config: Config = {
           foreground: '#000000',
         },
         alert: {
-           DEFAULT: '#FF0055', // Hype: Crimson
-           foreground: '#ffffff',
+          DEFAULT: '#FF0055', // Hype: Crimson
+          foreground: '#ffffff',
         },
         destructive: {
           DEFAULT: 'hsl(var(--destructive))',
@@ -105,8 +105,8 @@ const config: Config = {
         'float': '0 20px 25px -5px rgb(0 0 0 / 0.1)',
       },
       backgroundImage: {
-         'gradient-spirit': 'linear-gradient(to right, #8B5CF6, #6366F1)',
-         'gradient-holo': 'linear-gradient(115deg, transparent, rgba(255,255,255,0.2), transparent)',
+        'gradient-spirit': 'linear-gradient(to right, #8B5CF6, #6366F1)',
+        'gradient-holo': 'linear-gradient(115deg, transparent, rgba(255,255,255,0.2), transparent)',
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
@@ -116,6 +116,13 @@ const config: Config = {
         'glitch': 'glitch 1s linear infinite',
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'spin-slow': 'spin 3s linear infinite',
+        // Radix Animations
+        'scale-in': 'scale-in 0.2s ease-out',
+        'scale-out': 'scale-out 0.2s ease-in',
+        'zoom-in-95': 'zoom-in-95 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+        'zoom-out-95': 'zoom-out-95 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+        'slide-in-from-top-2': 'slide-in-from-top-2 0.2s ease-out',
+        'slide-in-from-bottom-2': 'slide-in-from-bottom-2 0.2s ease-out',
       },
       keyframes: {
         'accordion-down': {
@@ -138,6 +145,31 @@ const config: Config = {
           '2%, 64%': { transform: 'translate(2px,0) skew(0deg)' },
           '4%, 60%': { transform: 'translate(-2px,0) skew(0deg)' },
           '62%': { transform: 'translate(0,0) skew(5deg)' },
+        },
+        // Native-like transitions for Radix Primitives
+        'scale-in': {
+          '0%': { transform: 'scale(0.95)', opacity: '0' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
+        },
+        'scale-out': {
+          'from': { transform: 'scale(1)', opacity: '1' },
+          'to': { transform: 'scale(0.95)', opacity: '0' },
+        },
+        'zoom-in-95': {
+          '0%': { transform: 'scale(0.95)', opacity: '0' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
+        },
+        'zoom-out-95': {
+          'from': { transform: 'scale(1)', opacity: '1' },
+          'to': { transform: 'scale(0.95)', opacity: '0' },
+        },
+        'slide-in-from-top-2': {
+          'from': { transform: 'translateY(-0.5rem)', opacity: '0' },
+          'to': { transform: 'translateY(0)', opacity: '1' },
+        },
+        'slide-in-from-bottom-2': {
+          'from': { transform: 'translateY(0.5rem)', opacity: '0' },
+          'to': { transform: 'translateY(0)', opacity: '1' },
         },
       },
     },

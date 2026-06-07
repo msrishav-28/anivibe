@@ -1,0 +1,56 @@
+# Render Blueprint for AniVibe Backend
+# Deploy: Connect repo in Render dashboard → It will auto-detect this file
+
+services:
+  # FastAPI Backend
+  - type: web
+    name: anivibe-backend
+    runtime: python
+    region: singapore  # Closest to Mumbai Supabase
+    plan: starter  # Free tier (512MB RAM)
+    buildCommand: pip install -r requirements-lite.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: false
+      - key: SECRET_KEY
+        generateValue: true  # Auto-generate secure key
+      - key: SUPABASE_URL
+        sync: false  # Set in dashboard
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: REDIS_HOST
+        fromService:
+          type: redis
+          name: anivibe-redis
+          property: host
+      - key: REDIS_PORT
+        fromService:
+          type: redis
+          name: anivibe-redis
+          property: port
+      - key: ML_SERVICE_URL
+        value: https://your-modal-app.modal.run  # Update after Modal deployment
+      - key: USE_GPU
+        value: false
+      - key: ENABLE_IMAGE_SEARCH
+        value: false
+      - key: ENABLE_GNN
+        value: false
+      - key: CORS_ORIGINS
+        value: https://anivibe.vercel.app,https://www.anivibe.com  # Update with your domain
+
+  # Redis Cache
+  - type: redis
+    name: anivibe-redis
+    region: singapore
+    plan: starter  # Free tier (25MB)
+    maxmemoryPolicy: allkeys-lru  # Evict least recently used
+    ipAllowList: []  # Allow all (backend only)

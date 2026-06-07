@@ -4,6 +4,7 @@ import { Footer } from '@/components/layout/footer';
 import { BottomNav } from '@/components/layout/bottom-nav';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { ToastProvider } from '@/components/toast-provider';
+import { Providers } from '@/components/providers';
 import { CinematicContainer } from '@/components/layout/cinematic-container';
 import '@/styles/globals.css';
 
@@ -41,12 +42,14 @@ export default function RootLayout({
       <body className="font-sans text-foreground bg-background antialiased overflow-x-hidden selection:bg-primary-500/30 selection:text-white">
         <ErrorBoundary>
           <div className="relative flex min-h-screen flex-col">
-            <CinematicContainer>
-              <Header />
-              <main className="flex-1 relative z-10">{children}</main>
-              <Footer />
-              <BottomNav />
-            </CinematicContainer>
+            <Providers>
+              <CinematicContainer>
+                <Header />
+                <main className="flex-1 relative z-10 pb-20 md:pb-0">{children}</main>
+                <Footer />
+                <BottomNav />
+              </CinematicContainer>
+            </Providers>
           </div>
           <ToastProvider />
         </ErrorBoundary>

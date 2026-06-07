@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { Heart, Bookmark, Info, Play, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -54,11 +54,29 @@ export function AnimeCard({
 
   // List variant removed for Neo-Tokyo pivot
 
+  // Holographic physics
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+
+  // Smooth out the mouse movement
+  const mouseX = useSpring(x, { stiffness: 500, damping: 100 });
+  const mouseY = useSpring(y, { stiffness: 500, damping: 100 });
+
+  function onMouseMove({ currentTarget, clientX, clientY }: React.MouseEvent) {
+    const { left, top, width, height } = currentTarget.getBoundingClientRect();
+    x.set((clientX - left) / width - 0.5);
+    y.set((clientY - top) / height - 0.5);
+  }
+
+  const rotateX = useTransform(mouseY, [-0.5, 0.5], [7, -7]);
+  const rotateY = useTransform(mouseX, [-0.5, 0.5], [-7, 7]);
+  const sheenX = useTransform(mouseX, [-0.5, 0.5], ["0%", "200%"]);
+
   const cardVariants = {
-    initial: { y: 0, scale: 1 },
+    initial: { scale: 1 },
     hover:
       onHover === 'lift'
-        ? { y: -8, scale: 1.02 }
+        ? { scale: 1.05 }
         : onHover === 'expand'
           ? { scale: 1.05 }
           : { scale: 1 },
@@ -72,8 +90,14 @@ export function AnimeCard({
       onHoverEnd={() => setIsHovered(false)}
       variants={cardVariants}
       transition={{ duration: 0.3, ease: 'easeOut' }}
+      onMouseMove={onMouseMove}
+      style={{
+        rotateX: isHovered ? rotateX : 0,
+        rotateY: isHovered ? rotateY : 0,
+        transformStyle: 'preserve-3d',
+      }}
       className={cn(
-        'group relative overflow-hidden rounded-lg border border-border bg-card transition-all',
+        'group relative overflow-hidden rounded-lg border border-border bg-card transition-all perspective-1000',
         onHover === 'glow' && 'hover:shadow-glow',
         variant === 'featured' ? 'aspect-[2/3]' : 'aspect-poster',
         className
@@ -93,8 +117,18 @@ export function AnimeCard({
             sizes="(max-width: 768px) 50vw, 25vw"
           />
 
-          {/* Gradient Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          {/* Gradient Overlay - Always visible for text contrast */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-60 group-hover:opacity-90 transition-opacity duration-300" />
+
+          {/* Holographic Sheen */}
+          <motion.div
+            className="absolute inset-0 z-10 opacity-0 group-hover:opacity-40 pointer-events-none mix-blend-overlay"
+            style={{
+              background: 'linear-gradient(105deg, transparent 20%, rgba(255,255,255,0.8) 40%, rgba(139,92,246,0.6) 45%, transparent 60%)',
+              backgroundSize: '200% 100%',
+              backgroundPositionX: sheenX,
+            }}
+          />
 
           {/* Genre Badges (Top Right) */}
           <div className="absolute right-2 top-2 flex flex-col gap-1">

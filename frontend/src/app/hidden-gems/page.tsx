@@ -140,7 +140,7 @@ export default function HiddenGemsPage() {
                 <HiddenGemCard
                   key={anime.anime_id}
                   anime={anime}
-                  reason="Underrated masterpiece with excellent storytelling"
+                  reason={`Score: ${anime.score} • Members: ${anime.popularity || 'Low'}`}
                 />
               ))}
             </div>

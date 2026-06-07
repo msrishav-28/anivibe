@@ -8,10 +8,12 @@ import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { useAuthStore } from '@/store/auth-store';
 import { useWatchlistStore } from '@/store/watchlist-store';
-import { api } from '@/lib/api-client';
+import { useUserStats } from '@/hooks/use-queries';
 import { GlitchText } from '@/components/ui/glitch-text';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ProfileEditor } from '@/components/features/profile-editor';
 import dynamic from 'next/dynamic';
 
 const ActivityHeatmap = dynamic(() => import('@/components/features/profile/activity-heatmap').then(mod => mod.ActivityHeatmap), {
@@ -29,24 +31,9 @@ const MotionCard = motion(Card);
 export default function ProfilePage() {
   const { user } = useAuthStore();
   const { entries } = useWatchlistStore();
-  const [stats, setStats] = useState<any>(null);
 
-  useEffect(() => {
-    if (user) {
-      loadUserStats();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
-
-  const loadUserStats = async () => {
-    if (!user?.user_id) return;
-    try {
-      const userStats = await api.getUserStats(user.user_id);
-      setStats(userStats);
-    } catch (error) {
-      console.error('Failed to load stats:', error);
-    }
-  };
+  // $10k Upgrade: Use React Query Hook
+  const { data: stats, isLoading } = useUserStats(user?.user_id);
 
   if (!user) {
     return (
@@ -132,108 +119,103 @@ export default function ProfilePage() {
           </div>
         </MotionCard>
 
-        {/* Dashboard Grid */}
-        <div className="grid lg:grid-cols-12 gap-8">
-          {/* Left Column: Radar & Badges */}
-          <div className="lg:col-span-4 space-y-8">
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 }}
-              className="rounded-2xl border border-white/10 bg-black/40 backdrop-blur-sm p-6"
-            >
-              <h3 className="text-lg font-bold text-white mb-6 uppercase tracking-widest flex items-center gap-2">
-                <Zap className="w-4 h-4 text-yellow-400" />
-                Taste Profile
-              </h3>
-              <StatsRadar data={stats?.genre_distribution} />
-            </motion.div>
+        <Tabs defaultValue="dashboard" className="space-y-8">
+          <div className="flex items-center justify-between">
+            <TabsList className="bg-white/5 border border-white/10">
+              <TabsTrigger value="dashboard" className="text-xs uppercase tracking-wider">Dashboard</TabsTrigger>
+              <TabsTrigger value="settings" className="text-xs uppercase tracking-wider">Settings</TabsTrigger>
+            </TabsList>
+          </div>
 
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.3 }}
-              className="rounded-2xl border border-white/10 bg-black/40 backdrop-blur-sm p-6"
-            >
-              <h3 className="text-lg font-bold text-white mb-6 uppercase tracking-widest flex items-center gap-2">
-                <Award className="w-4 h-4 text-purple-400" />
-                Weeb Cred
-              </h3>
-              <div className="grid grid-cols-4 gap-4">
-                {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                  <div key={i} className="aspect-square rounded-lg bg-white/5 border border-white/10 flex items-center justify-center group hover:border-primary/50 transition-colors">
-                    <Award className={`w-6 h-6 ${i <= 3 ? 'text-primary' : 'text-white/20 group-hover:text-white/40'}`} />
-                  </div>
-                ))}
+          <TabsContent value="dashboard" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="grid lg:grid-cols-12 gap-8">
+              {/* Left Column: Radar & Badges */}
+              <div className="lg:col-span-4 space-y-8">
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="rounded-2xl border border-white/10 bg-black/40 backdrop-blur-sm p-6"
+                >
+                  <h3 className="text-lg font-bold text-white mb-6 uppercase tracking-widest flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-yellow-400" />
+                    Taste Profile
+                  </h3>
+                  <StatsRadar data={stats?.genre_distribution} />
+                </motion.div>
               </div>
-            </motion.div>
-          </div>
 
-          {/* Right Column: Heatmap & Recent */}
-          <div className="lg:col-span-8 space-y-8">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-            >
-              <h3 className="text-lg font-bold text-white mb-6 uppercase tracking-widest flex items-center gap-2">
-                <Terminal className="w-4 h-4 text-green-400" />
-                Neural Sync
-              </h3>
-              <ActivityHeatmap />
-            </motion.div>
+              {/* Right Column: Heatmap & Recent */}
+              <div className="lg:col-span-8 space-y-8">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                >
+                  <h3 className="text-lg font-bold text-white mb-6 uppercase tracking-widest flex items-center gap-2">
+                    <Terminal className="w-4 h-4 text-green-400" />
+                    Neural Sync
+                  </h3>
+                  <ActivityHeatmap />
+                </motion.div>
 
-            <div className="grid md:grid-cols-2 gap-6">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-                className="rounded-2xl border border-white/10 bg-black/40 backdrop-blur-sm p-6"
-              >
-                <h3 className="text-sm font-bold text-white/70 mb-4 uppercase">Watching Now</h3>
-                <div className="space-y-4">
-                  {watchingCount === 0 && <p className="text-sm text-muted-foreground italic">No active streams.</p>}
-                  {entries.filter(e => e.status === 'watching').slice(0, 3).map(entry => (
-                    <div key={entry.entry_id} className="flex items-center gap-3 group cursor-pointer">
-                      <div className="h-10 w-10 rounded bg-white/10 overflow-hidden relative">
-                        {/* Ideally an image here */}
-                        <div className="absolute inset-0 bg-primary/20" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-white truncate group-hover:text-primary transition-colors">{entry.anime?.title || 'Unknown Title'}</div>
-                        <div className="text-xs text-muted-foreground">{entry.episodes_watched} / {entry.anime?.episodes || '?'} eps</div>
-                      </div>
-                      <Badge variant="outline" className="text-[10px] border-primary/20 text-primary">Active</Badge>
+                <div className="grid md:grid-cols-2 gap-6">
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5 }}
+                    className="rounded-2xl border border-white/10 bg-black/40 backdrop-blur-sm p-6"
+                  >
+                    <h3 className="text-sm font-bold text-white/70 mb-4 uppercase">Watching Now</h3>
+                    <div className="space-y-4">
+                      {watchingCount === 0 && <p className="text-sm text-muted-foreground italic">No active streams.</p>}
+                      {entries.filter(e => e.status === 'watching').slice(0, 3).map(entry => (
+                        <div key={entry.entry_id} className="flex items-center gap-3 group cursor-pointer">
+                          <div className="h-10 w-10 rounded bg-white/10 overflow-hidden relative">
+                            {/* Ideally an image here */}
+                            <div className="absolute inset-0 bg-primary/20" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-white truncate group-hover:text-primary transition-colors">{entry.anime?.title || 'Unknown Title'}</div>
+                            <div className="text-xs text-muted-foreground">{entry.episodes_watched} / {entry.anime?.episodes || '?'} eps</div>
+                          </div>
+                          <Badge variant="outline" className="text-[10px] border-primary/20 text-primary">Active</Badge>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </motion.div>
+                  </motion.div>
 
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 }}
-                className="rounded-2xl border border-white/10 bg-black/40 backdrop-blur-sm p-6"
-              >
-                <h3 className="text-sm font-bold text-white/70 mb-4 uppercase">Recently Completed</h3>
-                <div className="space-y-4">
-                  {completedCount === 0 && <p className="text-sm text-muted-foreground italic">No data archived.</p>}
-                  {entries.filter(e => e.status === 'completed').slice(0, 3).map(entry => (
-                    <div key={entry.entry_id} className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded bg-white/10 flex items-center justify-center text-success">
-                        <Check className="w-5 h-5" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-white truncate">{entry.anime?.title}</div>
-                        <div className="text-xs text-muted-foreground">Score: {entry.score || '-'}/10</div>
-                      </div>
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.6 }}
+                    className="rounded-2xl border border-white/10 bg-black/40 backdrop-blur-sm p-6"
+                  >
+                    <h3 className="text-sm font-bold text-white/70 mb-4 uppercase">Recently Completed</h3>
+                    <div className="space-y-4">
+                      {completedCount === 0 && <p className="text-sm text-muted-foreground italic">No data archived.</p>}
+                      {entries.filter(e => e.status === 'completed').slice(0, 3).map(entry => (
+                        <div key={entry.entry_id} className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded bg-white/10 flex items-center justify-center text-success">
+                            <Check className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-white truncate">{entry.anime?.title}</div>
+                            <div className="text-xs text-muted-foreground">Score: {entry.score || '-'}/10</div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </motion.div>
                 </div>
-              </motion.div>
+              </div>
             </div>
-          </div>
-        </div>
+          </TabsContent>
+
+          <TabsContent value="settings" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <ProfileEditor />
+          </TabsContent>
+        </Tabs>
 
       </div>
     </div>

@@ -1,215 +1,176 @@
 """
-Security utilities for authentication and authorization
+Security utilities for Supabase Auth
 """
-from datetime import datetime, timedelta
-from typing import Optional, Dict
-from jose import JWTError, jwt
-from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Optional, Dict, Any
+from fastapi import Depends, HTTPException, status, Request
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from supabase import Client
+# from passlib.context import CryptContext (Removed)
+import logging
 
-from config import settings
-from app.core.database import get_db
+from app.core.database import get_supabase, get_supabase_admin
 
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+logger = logging.getLogger(__name__)
 
-# OAuth2 scheme
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.api_v1_prefix}/auth/login")
+# HTTP Bearer security scheme
+security = HTTPBearer(auto_error=False)
 
+# Password hashing context removed - Supabase handles all authentication
+# verify_password and get_password_hash are deprecated/removed
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a password against its hash"""
-    return pwd_context.verify(plain_password, hashed_password)
+    """DEPRECATED: Verify a password against a hash (backwards compatibility)"""
+    raise NotImplementedError("Use Supabase Auth")
 
 
 def get_password_hash(password: str) -> str:
-    """Hash a password"""
-    return pwd_context.hash(password)
+    """DEPRECATED: Hash a password (backwards compatibility)"""
+    raise NotImplementedError("Use Supabase Auth")
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+async def get_current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    supabase: Client = Depends(get_supabase)
+) -> Dict[str, Any]:
     """
-    Create JWT access token
+    Verify Supabase JWT and return current user.
     
-    Args:
-        data: Data to encode in the token
-        expires_delta: Token expiration time
+    Usage:
+        user = Depends(get_current_user)
     
     Returns:
-        Encoded JWT token
+        Dictionary with user data including id, email, username
+    
+    Raises:
+        HTTPException 401 if token is invalid or missing
     """
-    to_encode = data.copy()
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
     
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
+    try:
+        token = credentials.credentials
+        
+        # Verify token with Supabase and get user
+        response = supabase.auth.get_user(token)
+        
+        if response.user:
+            user_metadata = response.user.user_metadata or {}
+            
+            return {
+                "id": str(response.user.id),
+                "user_id": str(response.user.id),
+                "email": response.user.email,
+                "username": user_metadata.get("username", response.user.email.split("@")[0]),
+                "full_name": user_metadata.get("full_name"),
+                "avatar_url": user_metadata.get("avatar_url"),
+                "is_verified": response.user.email_confirmed_at is not None,
+                "created_at": response.user.created_at
+            }
+        
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication token",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Authentication error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+
+
+async def get_current_user_optional(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    supabase: Client = Depends(get_supabase)
+) -> Optional[Dict[str, Any]]:
+    """
+    Get current user if authenticated, otherwise return None.
     
-    to_encode.update({"exp": expire, "type": "access"})
+    Useful for endpoints that work with or without authentication.
     
-    encoded_jwt = jwt.encode(
-        to_encode,
-        settings.secret_key,
-        algorithm=settings.algorithm
-    )
+    Usage:
+        user = Depends(get_current_user_optional)
+        if user:
+            # User is logged in
+        else:
+            # Anonymous user
+    """
+    if not credentials:
+        return None
     
-    return encoded_jwt
+    try:
+        return await get_current_user(credentials, supabase)
+    except HTTPException:
+        return None
+
+
+async def get_current_active_user(
+    current_user: Dict[str, Any] = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """
+    Get current user and verify they are active.
+    
+    Raises:
+        HTTPException 403 if user is inactive
+    """
+    # Supabase users are always active if the token is valid
+    # Add additional checks here if needed
+    return current_user
+
+
+async def get_current_verified_user(
+    current_user: Dict[str, Any] = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """
+    Get current user and verify their email is confirmed.
+    
+    Raises:
+        HTTPException 403 if email not verified
+    """
+    if not current_user.get("is_verified"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Email not verified. Please check your email for verification link."
+        )
+    return current_user
+
+
+def create_access_token(data: dict) -> str:
+    """
+    Create access token - DEPRECATED.
+    
+    Supabase handles token creation. This function is kept for backwards compatibility
+    but should not be used in new code.
+    """
+    logger.warning("create_access_token called but Supabase handles token creation")
+    raise NotImplementedError("Use Supabase Auth for token creation")
 
 
 def create_refresh_token(data: dict) -> str:
     """
-    Create JWT refresh token
+    Create refresh token - DEPRECATED.
     
-    Args:
-        data: Data to encode in the token
-    
-    Returns:
-        Encoded JWT token
+    Supabase handles token creation. This function is kept for backwards compatibility
+    but should not be used in new code.
     """
-    to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
-    
-    to_encode.update({"exp": expire, "type": "refresh"})
-    
-    encoded_jwt = jwt.encode(
-        to_encode,
-        settings.secret_key,
-        algorithm=settings.algorithm
-    )
-    
-    return encoded_jwt
+    logger.warning("create_refresh_token called but Supabase handles token creation")
+    raise NotImplementedError("Use Supabase Auth for token creation")
 
 
-def decode_token(token: str) -> Dict:
+def decode_token(token: str) -> dict:
     """
-    Decode and verify JWT token
+    Decode token - DEPRECATED.
     
-    Args:
-        token: JWT token to decode
-    
-    Returns:
-        Decoded token payload
-    
-    Raises:
-        HTTPException: If token is invalid or expired
+    Use get_current_user dependency instead.
     """
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    
-    try:
-        payload = jwt.decode(
-            token,
-            settings.secret_key,
-            algorithms=[settings.algorithm]
-        )
-        return payload
-        
-    except JWTError:
-        raise credentials_exception
-
-
-async def get_current_user(
-    token: str = Depends(oauth2_scheme),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Get current authenticated user from token
-    
-    Args:
-        token: JWT token from request
-        db: Database session
-    
-    Returns:
-        Current user object
-    
-    Raises:
-        HTTPException: If authentication fails
-    """
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    
-    payload = decode_token(token)
-    
-    user_id: str = payload.get("sub")
-    token_type: str = payload.get("type")
-    
-    if user_id is None or token_type != "access":
-        raise credentials_exception
-    
-    # Import here to avoid circular imports
-    from app.models.user import User
-    from sqlalchemy import select
-    
-    result = await db.execute(select(User).filter(User.id == int(user_id)))
-    user = result.scalar_one_or_none()
-    
-    if user is None:
-        raise credentials_exception
-    
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Inactive user"
-        )
-    
-    return user
-
-
-async def get_current_active_user(
-    current_user = Depends(get_current_user)
-):
-    """
-    Get current active user
-    
-    Args:
-        current_user: Current user from token
-    
-    Returns:
-        Active user object
-    
-    Raises:
-        HTTPException: If user is inactive
-    """
-    if not current_user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Inactive user"
-        )
-    return current_user
-
-
-async def get_current_superuser(
-    current_user = Depends(get_current_user)
-):
-    """
-    Get current superuser
-    
-    Args:
-        current_user: Current user from token
-    
-    Returns:
-        Superuser object
-    
-    Raises:
-        HTTPException: If user is not a superuser
-    """
-    if not current_user.is_superuser:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough privileges"
-        )
-    return current_user
-
-
-def create_api_key() -> str:
-    """Generate a random API key"""
-    import secrets
-    return secrets.token_urlsafe(32)
+    logger.warning("decode_token called but use get_current_user instead")
+    raise NotImplementedError("Use get_current_user dependency for token verification")

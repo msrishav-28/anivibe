@@ -1,20 +1,17 @@
 """
-Recommendation endpoints
+Recommendation endpoints for Supabase
 """
+from typing import Dict, Any, Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func
+from sqlalchemy.orm import selectinload
+from uuid import UUID
+from pydantic import BaseModel
 
 from app.core.database import get_db
 from app.core.security import get_current_active_user
-from app.models.user import User
-from app.schemas.recommendation import (
-    RecommendationRequest,
-    RecommendationBatchResponse,
-    SimilarAnimeRequest,
-    HiddenGemRequest,
-    MoodBasedRequest,
-    TasteProfileResponse
-)
+from app.models.anime import Anime
 from app.services.recommendations import (
     get_personalized_recommendations,
     get_similar_anime,
@@ -26,19 +23,52 @@ from app.services.recommendations import (
 router = APIRouter()
 
 
-@router.post("/personalized", response_model=RecommendationBatchResponse)
+# Request schemas
+class RecommendationRequest(BaseModel):
+    top_k: int = 10
+    method: str = "hybrid"
+    filters: Optional[Dict[str, Any]] = None
+    exclude_watched: bool = True
+    popularity_attenuation: float = 0.3
+    diversity_weight: float = 0.2
+
+
+class SimilarAnimeRequest(BaseModel):
+    anime_id: int
+    top_k: int = 10
+    method: str = "multimodal"
+
+
+class HiddenGemRequest(BaseModel):
+    user_id: Optional[str] = None
+    top_k: int = 10
+    max_popularity: int = 50000
+    min_score: float = 7.0
+    genres: Optional[List[str]] = None
+    tags: Optional[List[str]] = None
+
+
+class MoodBasedRequest(BaseModel):
+    mood: str
+    top_k: int = 10
+    user_id: Optional[str] = None
+
+
+@router.post("/personalized")
 async def personalized_recommendations(
     request: RecommendationRequest,
-    current_user: User = Depends(get_current_active_user),
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Get personalized recommendations for current user
-    Uses hybrid system: collaborative filtering + content-based + GNN
+    Uses the current hybrid system: collaborative filtering + content-based scoring
     """
+    user_id = UUID(current_user["id"])
+    
     try:
         results = await get_personalized_recommendations(
-            user_id=current_user.id,
+            user_id=str(user_id),
             top_k=request.top_k,
             method=request.method,
             filters=request.filters,
@@ -57,14 +87,14 @@ async def personalized_recommendations(
         )
 
 
-@router.post("/similar", response_model=RecommendationBatchResponse)
+@router.post("/similar")
 async def similar_anime(
     request: SimilarAnimeRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """
     Find anime similar to a given anime
-    Uses multimodal features (CLIP + BERT + metadata)
+    Uses content-based similarity in the current implementation
     """
     try:
         results = await get_similar_anime(
@@ -83,7 +113,7 @@ async def similar_anime(
         )
 
 
-@router.post("/hidden-gems", response_model=RecommendationBatchResponse)
+@router.post("/hidden-gems")
 async def hidden_gems(
     request: HiddenGemRequest,
     db: AsyncSession = Depends(get_db)
@@ -112,7 +142,7 @@ async def hidden_gems(
         )
 
 
-@router.post("/mood-based", response_model=RecommendationBatchResponse)
+@router.post("/mood-based")
 async def mood_based_recommendations(
     request: MoodBasedRequest,
     db: AsyncSession = Depends(get_db)
@@ -138,18 +168,20 @@ async def mood_based_recommendations(
         )
 
 
-@router.get("/taste-profile", response_model=TasteProfileResponse)
+@router.get("/taste-profile")
 async def taste_profile(
-    current_user: User = Depends(get_current_active_user),
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Get user's taste profile
     Analyzes rating patterns, genres, studios, etc.
     """
+    user_id = UUID(current_user["id"])
+    
     try:
         profile = await get_user_taste_profile(
-            user_id=current_user.id,
+            user_id=str(user_id),
             db=db
         )
         
@@ -171,9 +203,6 @@ async def cold_start_recommendations(
     Get recommendations for new users (cold start)
     Returns popular, highly-rated anime across diverse genres
     """
-    from sqlalchemy import select, func
-    from sqlalchemy.orm import selectinload
-    from app.models.anime import Anime
     import random
     
     # Get top-rated anime with diverse genres

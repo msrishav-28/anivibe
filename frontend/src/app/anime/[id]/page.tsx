@@ -6,10 +6,13 @@ import { motion } from 'framer-motion';
 import { Star, Play, Plus, Check, Share2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ReviewSection } from '@/components/features/review-section';
 import { GlitchText } from '@/components/ui/glitch-text';
 import { AnimeCard } from '@/components/features/anime-card';
-import { api } from '@/lib/api-client';
 import { useWatchlistStore } from '@/store/watchlist-store';
+import { WhyTooltip } from '@/components/features/why-tooltip';
+import { useAnime, useSimilarAnime, useExplanation } from '@/hooks/use-queries';
 import type { Anime } from '@/types';
 
 interface AnimeDetailPageProps {
@@ -17,33 +20,14 @@ interface AnimeDetailPageProps {
 }
 
 export default function AnimeDetailPage({ params }: AnimeDetailPageProps) {
-  const [anime, setAnime] = useState<Anime | null>(null);
-  const [similarAnime, setSimilarAnime] = useState<Anime[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  // $10k Upgrade: React Query Hooks
+  const { data: anime, isLoading: isAnimeLoading } = useAnime(parseInt(params.id));
+  const { data: similarAnime = [] } = useSimilarAnime(parseInt(params.id));
+  const { data: explanation } = useExplanation(parseInt(params.id));
+
   const { entries, addToWatchlist } = useWatchlistStore();
 
   const isInWatchlist = entries.some((entry) => entry.anime_id === parseInt(params.id));
-
-  useEffect(() => {
-    const loadAnimeDetails = async () => {
-      setIsLoading(true);
-      try {
-        const [animeData, similar] = await Promise.all([
-          api.getAnime(parseInt(params.id)),
-          api.getSimilarAnime(parseInt(params.id), 12),
-        ]);
-        setAnime(animeData);
-        // Map recommendations to extract the anime object, handling potential type mismatches
-        setSimilarAnime(similar.map((item: any) => item.anime || item));
-      } catch (error) {
-        console.error('Failed to load anime:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadAnimeDetails();
-  }, [params.id]);
 
   const handleAddToWatchlist = () => {
     if (anime) {
@@ -51,7 +35,7 @@ export default function AnimeDetailPage({ params }: AnimeDetailPageProps) {
     }
   };
 
-  if (isLoading || !anime) {
+  if (isAnimeLoading || !anime) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
@@ -161,58 +145,93 @@ export default function AnimeDetailPage({ params }: AnimeDetailPageProps) {
             </div>
 
             {/* Content Tabs / Info */}
-            <div className="grid md:grid-cols-[2fr_1fr] gap-12">
-              <div className="space-y-8">
-                <section>
-                  <h3 className="text-xl font-heading mb-4 text-white/50 uppercase tracking-widest">Synopsis</h3>
-                  <p className="text-lg leading-relaxed text-muted-foreground">
-                    {anime.synopsis}
-                  </p>
-                </section>
+            <div className="mt-12">
+              <Tabs defaultValue="overview" className="w-full">
+                <TabsList className="bg-white/5 border border-white/10 mb-8 p-1 h-auto">
+                  <TabsTrigger value="overview" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary px-6 py-2">Overview</TabsTrigger>
+                  <TabsTrigger value="reviews" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary px-6 py-2">Reviews & Ratings</TabsTrigger>
+                  <TabsTrigger value="characters" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary px-6 py-2" disabled>Characters</TabsTrigger>
+                </TabsList>
 
-                <section>
-                  <h3 className="text-xl font-heading mb-4 text-white/50 uppercase tracking-widest">The Vibe</h3>
-                  <div className="p-6 rounded-2xl bg-white/5 border border-white/5 backdrop-blur-sm">
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center text-primary">
-                        <Sparkles className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <div className="text-white font-bold">98% Match</div>
-                        <div className="text-sm text-muted-foreground">Based on your taste profile</div>
-                      </div>
-                    </div>
-                    <p className="text-sm text-white/70 italic">
-                      &quot;You&apos;ll love this because it features high-stakes psychological battles similar to your favorite, <span className="text-primary">Death Note</span>.&quot;
-                    </p>
-                  </div>
-                </section>
-              </div>
+                <TabsContent value="overview" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <div className="grid md:grid-cols-[2fr_1fr] gap-12">
+                    <div className="space-y-8">
+                      <section>
+                        <h3 className="text-xl font-heading mb-4 text-white/50 uppercase tracking-widest">Synopsis</h3>
+                        <p className="text-lg leading-relaxed text-muted-foreground">
+                          {anime.synopsis}
+                        </p>
+                      </section>
 
-              {/* Sidebar Info (Studio/etc) */}
-              <div className="space-y-6">
-                <div className="p-6 rounded-2xl bg-black/40 border border-white/5">
-                  <h4 className="text-sm font-bold text-white mb-4 uppercase tracking-wider">Information</h4>
-                  <div className="space-y-4 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Studio</span>
-                      <span className="text-white">{anime.studios?.[0] || 'Unknown'}</span>
+                      <section>
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-xl font-heading text-white/50 uppercase tracking-widest">The Vibe</h3>
+                          {explanation && (
+                            <WhyTooltip
+                              score={Math.round(explanation.score * 100)}
+                              reason={explanation.reason}
+                            />
+                          )}
+                        </div>
+
+                        {explanation ? (
+                          <div className="p-6 rounded-2xl bg-white/5 border border-white/5 backdrop-blur-sm group cursor-pointer transition-colors hover:bg-white/10"
+                            onClick={() => document.querySelector<HTMLElement>('.explainability-trigger')?.click()}
+                          >
+                            <div className="flex items-center gap-4 mb-4">
+                              <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center text-primary shadow-[0_0_15px_rgba(139,92,246,0.4)] group-hover:scale-110 transition-transform">
+                                <Sparkles className="w-6 h-6" />
+                              </div>
+                              <div>
+                                <div className="text-white font-bold text-lg">{Math.round(explanation.score * 100)}% Match</div>
+                                <div className="text-sm text-muted-foreground">Based on your taste profile</div>
+                              </div>
+                            </div>
+                            <p className="text-sm text-white/70 italic border-l-2 border-primary/30 pl-4">
+                              &quot;{explanation.reason}&quot;
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="p-6 rounded-2xl bg-white/5 border border-white/5 opacity-50">
+                            <p className="text-sm text-muted-foreground italic">
+                              AI analysis pending...
+                            </p>
+                          </div>
+                        )}
+                      </section>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Status</span>
-                      <span className="text-white">{anime.status}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Duration</span>
-                      <span className="text-white">{anime.duration}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Rating</span>
-                      <span className="text-white">{anime.rating}</span>
+
+                    {/* Sidebar Info (Studio/etc) */}
+                    <div className="space-y-6">
+                      <div className="p-6 rounded-2xl bg-black/40 border border-white/5">
+                        <h4 className="text-sm font-bold text-white mb-4 uppercase tracking-wider">Information</h4>
+                        <div className="space-y-4 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Studio</span>
+                            <span className="text-white">{anime.studios?.[0] || 'Unknown'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Status</span>
+                            <span className="text-white">{anime.status}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Duration</span>
+                            <span className="text-white">{anime.duration}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Rating</span>
+                            <span className="text-white">{anime.rating}</span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
+                </TabsContent>
+
+                <TabsContent value="reviews" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <ReviewSection animeId={anime.anime_id} />
+                </TabsContent>
+              </Tabs>
             </div>
 
             {/* Similar Anime Section (Optional, could just use Recommendations) */}

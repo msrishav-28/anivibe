@@ -1,6 +1,7 @@
 """
 Recommendation engine service
-Implements hybrid recommendation system: Collaborative + Content-Based + GNN
+Implements the database-backed hybrid recommendation path:
+collaborative filtering plus content-based scoring.
 """
 import time
 import logging
@@ -22,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 async def get_personalized_recommendations(
-    user_id: int,
+    user_id: str,
     top_k: int = 10,
     method: str = "hybrid",
     filters: Optional[Dict[str, Any]] = None,
@@ -281,7 +282,7 @@ async def get_similar_anime(
 
 
 async def discover_hidden_gems(
-    user_id: Optional[int],
+    user_id: Optional[str],
     top_k: int = 10,
     max_popularity: int = 50000,
     min_score: float = 7.5,
@@ -342,7 +343,7 @@ async def discover_hidden_gems(
 async def get_mood_based_recommendations(
     mood: str,
     top_k: int = 10,
-    user_id: Optional[int] = None,
+    user_id: Optional[str] = None,
     db: AsyncSession = None
 ) -> Dict[str, Any]:
     """
@@ -362,7 +363,7 @@ async def get_mood_based_recommendations(
 
 
 async def get_user_taste_profile(
-    user_id: int,
+    user_id: str,
     db: AsyncSession = None
 ) -> Dict[str, Any]:
     """

@@ -1,47 +1,7 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database
-  postgres:
-    image: postgres:15-alpine
-    container_name: anivibe_postgres
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-anivibe}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-anivibe_password}
-      POSTGRES_DB: ${POSTGRES_DB:-anivibe_db}
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-anivibe}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - anivibe_network
-
-  # MongoDB
-  mongodb:
-    image: mongo:7
-    container_name: anivibe_mongodb
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGODB_USER:-anivibe}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_PASSWORD:-anivibe_password}
-      MONGO_INITDB_DATABASE: ${MONGODB_DB:-anivibe_embeddings}
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongodb_data:/data/db
-    healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - anivibe_network
-
-  # Redis
+  # Redis for caching only
   redis:
     image: redis:7-alpine
     container_name: anivibe_redis
@@ -49,7 +9,7 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -66,91 +26,40 @@ services:
     container_name: anivibe_backend
     environment:
       - ENVIRONMENT=${ENVIRONMENT:-development}
-      - DEBUG=${DEBUG:-True}
-      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
-      - POSTGRES_HOST=postgres
-      - POSTGRES_PORT=5432
-      - POSTGRES_USER=${POSTGRES_USER:-anivibe}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-anivibe_password}
-      - POSTGRES_DB=${POSTGRES_DB:-anivibe_db}
-      - MONGODB_HOST=mongodb
-      - MONGODB_PORT=27017
-      - MONGODB_USER=${MONGODB_USER:-anivibe}
-      - MONGODB_PASSWORD=${MONGODB_PASSWORD:-anivibe_password}
-      - MONGODB_DB=${MONGODB_DB:-anivibe_embeddings}
+      - DEBUG=${DEBUG:-true}
+      - SECRET_KEY=${SECRET_KEY}
+      
+      # Supabase (only database)
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - SUPABASE_DB_PASSWORD=${SUPABASE_DB_PASSWORD}
+      
+      # Redis
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      
+      # API Keys
       - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
       - MAL_CLIENT_ID=${MAL_CLIENT_ID}
-      - MAL_CLIENT_SECRET=${MAL_CLIENT_SECRET}
       - ANILIST_CLIENT_ID=${ANILIST_CLIENT_ID}
-      - ANILIST_CLIENT_SECRET=${ANILIST_CLIENT_SECRET}
+      
+      # ML Service
+      - ML_SERVICE_URL=${ML_SERVICE_URL:-http://localhost:8080}
+      
+      # Feature Flags
+      - ENABLE_IMAGE_SEARCH=${ENABLE_IMAGE_SEARCH:-false}
+      - ENABLE_GNN=${ENABLE_GNN:-false}
+      - USE_GPU=${USE_GPU:-false}
+      
     ports:
       - "8000:8000"
     volumes:
-      - ./data:/app/data
-      - ./models:/app/models
       - ./logs:/app/logs
+      - ./models:/app/models
     depends_on:
-      postgres:
-        condition: service_healthy
-      mongodb:
-        condition: service_healthy
       redis:
         condition: service_healthy
-    networks:
-      - anivibe_network
-    restart: unless-stopped
-
-  # Celery Worker
-  celery_worker:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: anivibe_celery_worker
-    command: celery -A app.tasks.celery_app worker --loglevel=info
-    environment:
-      - ENVIRONMENT=${ENVIRONMENT:-development}
-      - POSTGRES_HOST=postgres
-      - MONGODB_HOST=mongodb
-      - REDIS_HOST=redis
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-    volumes:
-      - ./data:/app/data
-      - ./models:/app/models
-      - ./logs:/app/logs
-    depends_on:
-      - postgres
-      - mongodb
-      - redis
-      - backend
-    networks:
-      - anivibe_network
-    restart: unless-stopped
-
-  # MLflow (Optional - for model tracking)
-  mlflow:
-    image: ghcr.io/mlflow/mlflow:v2.8.0
-    container_name: anivibe_mlflow
-    ports:
-      - "5000:5000"
-    environment:
-      - BACKEND_STORE_URI=postgresql://${POSTGRES_USER:-anivibe}:${POSTGRES_PASSWORD:-anivibe_password}@postgres:5432/mlflow
-      - ARTIFACT_ROOT=/mlflow/artifacts
-    volumes:
-      - mlflow_data:/mlflow
-    command: >
-      mlflow server
-      --backend-store-uri postgresql://${POSTGRES_USER:-anivibe}:${POSTGRES_PASSWORD:-anivibe_password}@postgres:5432/mlflow
-      --default-artifact-root /mlflow/artifacts
-      --host 0.0.0.0
-      --port 5000
-    depends_on:
-      - postgres
     networks:
       - anivibe_network
     restart: unless-stopped
@@ -160,7 +69,4 @@ networks:
     driver: bridge
 
 volumes:
-  postgres_data:
-  mongodb_data:
   redis_data:
-  mlflow_data:

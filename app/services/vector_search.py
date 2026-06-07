@@ -1,57 +1,24 @@
 """
-Vector similarity search using FAISS
+Vector similarity search using Supabase pgvector
+Replaces FAISS implementation for production readiness
 """
-import numpy as np
-import faiss
 import logging
-from pathlib import Path
-from typing import Dict, Optional
-import pickle
-
-from app.core.ml_models import encode_text_clip, encode_text_sbert
+import json
+import httpx
+from typing import Dict, Optional, List, Any
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, text
 from config import settings
+from app.core.ml_models import encode_text_sbert
+from app.models.anime import Anime
 
 logger = logging.getLogger(__name__)
-
-# Global FAISS indexes
-clip_index: Optional[faiss.Index] = None
-sbert_index: Optional[faiss.Index] = None
-anime_id_mapping: Optional[Dict[int, int]] = None  # index_pos -> anime_id
-
-
-def load_faiss_indexes():
-    """Load FAISS indexes from disk"""
-    global clip_index, sbert_index, anime_id_mapping
-    
-    faiss_dir = Path(settings.faiss_index_path)
-    
-    try:
-        # Load CLIP index
-        clip_path = faiss_dir / "clip_index.faiss"
-        if clip_path.exists():
-            clip_index = faiss.read_index(str(clip_path))
-            logger.info(f"Loaded CLIP index with {clip_index.ntotal} vectors")
-        
-        # Load SBERT index
-        sbert_path = faiss_dir / "sbert_index.faiss"
-        if sbert_path.exists():
-            sbert_index = faiss.read_index(str(sbert_path))
-            logger.info(f"Loaded SBERT index with {sbert_index.ntotal} vectors")
-        
-        # Load ID mapping
-        mapping_path = faiss_dir / "anime_id_mapping.pkl"
-        if mapping_path.exists():
-            with open(mapping_path, 'rb') as f:
-                anime_id_mapping = pickle.load(f)
-            logger.info(f"Loaded anime ID mapping with {len(anime_id_mapping)} entries")
-        
-    except Exception as e:
-        logger.error(f"Failed to load FAISS indexes: {e}")
 
 
 async def search_by_clip(query: str, top_k: int = 10) -> Dict[int, float]:
     """
-    Search anime using CLIP embeddings
+    Search anime using CLIP embeddings via Modal microservice
+    This is for TEXT-TO-IMAGE search (finding anime by visual description)
     
     Args:
         query: Text query
@@ -60,107 +27,133 @@ async def search_by_clip(query: str, top_k: int = 10) -> Dict[int, float]:
     Returns:
         Dictionary mapping anime_id to similarity score
     """
-    global clip_index, anime_id_mapping
-    
-    if clip_index is None or anime_id_mapping is None:
-        load_faiss_indexes()
-    
-    if clip_index is None:
-        logger.warning("CLIP index not available")
+    if not settings.enable_image_search:
         return {}
+        
+    # For text-to-image search, we need to embed the text into CLIP space
+    # Ideally this runs on Modal too, but we can call the semantic_search endpoint
+    # that handles multimodal queries if implemented there.
     
+    # Current implementation strategy:
+    # 1. We assume the Modal service has a dedicated text-to-image search endpoint
+    #    OR we just use SBERT for now as a fallback if Modal isn't set up for text-clip
+    
+    logger.warning("CLIP text-search via Modal not fully implemented, falling back to SBERT")
+    return await search_by_sbert(query, top_k)
+
+
+async def search_by_image(image_base64: str, top_k: int = 20) -> Dict[int, float]:
+    """
+    Search anime by Image using Modal microservice (CLIP)
+    """
+    if not settings.ml_service_url:
+        logger.warning("ML Service URL not set")
+        return {}
+        
     try:
-        # Encode query
-        query_embedding = encode_text_clip(query)
-        if query_embedding.ndim == 1:
-            query_embedding = query_embedding.reshape(1, -1)
-        
-        # Search
-        distances, indices = clip_index.search(query_embedding.astype('float32'), top_k)
-        
-        # Convert to anime IDs and scores
-        results = {}
-        for idx, distance in zip(indices[0], distances[0]):
-            if idx >= 0 and idx in anime_id_mapping:
-                anime_id = anime_id_mapping[idx]
-                results[anime_id] = float(distance)
-        
-        return results
-        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{settings.ml_service_url}/clip_image_search",
+                json={"image_base64": image_base64, "limit": top_k},
+                timeout=settings.ml_service_timeout
+            )
+            
+            if response.status_code != 200:
+                logger.error(f"ML Service Error: {response.text}")
+                return {}
+                
+            data = response.json()
+            # Convert list [{"id": 1, "similarity": 0.9}] to dict {1: 0.9}
+            # Note: Modal returns "id" or "anime_id" depending on RPC
+            results = {}
+            for item in data.get("results", []):
+                aid = item.get("id") or item.get("anime_id")
+                score = item.get("similarity", 0.0)
+                if aid:
+                    results[aid] = float(score)
+            
+            return results
+            
     except Exception as e:
-        logger.error(f"CLIP search failed: {e}")
+        logger.error(f"Image search failed: {e}")
         return {}
 
 
-async def search_by_sbert(query: str, top_k: int = 10) -> Dict[int, float]:
+async def _search_remote_sbert(query: str, top_k: int) -> Dict[int, float]:
+    """Helper to call remote SBERT service"""
+    if not settings.ml_service_url:
+        logger.error("Local ML missing and ML_SERVICE_URL not set")
+        return {}
+
+    try:
+        logger.info(f"Forwarding SBERT search to {settings.ml_service_url}")
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{settings.ml_service_url}/semantic_search",
+                json={"query": query, "limit": top_k},
+                timeout=30.0
+            )
+            
+            if response.status_code != 200:
+                logger.error(f"Remote SBERT failed: {response.text}")
+                return {}
+            
+            data = response.json()
+            # Expected format: {"results": [{"anime_id": 1, "similarity": 0.9}, ...]}
+            results = {}
+            for item in data.get("results", []):
+                aid = item.get("anime_id") or item.get("id")
+                score = item.get("similarity", 0.0)
+                if aid:
+                     results[aid] = float(score)
+            return results
+
+    except Exception as e:
+        logger.error(f"Remote SBERT error: {e}")
+        return {}
+
+
+async def search_by_sbert(query: str, top_k: int = 10, db: AsyncSession = None) -> Dict[int, float]:
     """
-    Search anime using SBERT embeddings
+    Search anime using SBERT embeddings (Local execution + DB Query OR Remote)
     
     Args:
         query: Text query
         top_k: Number of results
+        db: Database session (Required for pgvector query if local)
     
     Returns:
         Dictionary mapping anime_id to similarity score
     """
-    global sbert_index, anime_id_mapping
-    
-    if sbert_index is None or anime_id_mapping is None:
-        load_faiss_indexes()
-    
-    if sbert_index is None:
-        logger.warning("SBERT index not available")
-        return {}
-    
     try:
-        # Encode query
+        # 1. Try to encode query locally
         query_embedding = encode_text_sbert(query)
-        if query_embedding.ndim == 1:
-            query_embedding = query_embedding.reshape(1, -1)
         
-        # Search
-        distances, indices = sbert_index.search(query_embedding.astype('float32'), top_k)
+        # If local model returned None (missing libs), go remote
+        if query_embedding is None:
+             return await _search_remote_sbert(query, top_k)
+
+        # 2. Query Supabase using pgvector <=> operator (cosine distance)
+        # 1 - (a <=> b) = cosine similarity
+        if not db:
+            logger.error("Database session required for local vector search")
+            return {}
+
+        embedding_list = query_embedding.tolist()[0] if hasattr(query_embedding, "tolist") else query_embedding
         
-        # Convert to anime IDs and scores
-        results = {}
-        for idx, distance in zip(indices[0], distances[0]):
-            if idx >= 0 and idx in anime_id_mapping:
-                anime_id = anime_id_mapping[idx]
-                results[anime_id] = float(distance)
+        stmt = text("""
+            SELECT id, 1 - (embedding_sbert <=> :embedding) as similarity
+            FROM anime
+            WHERE embedding_sbert IS NOT NULL
+            ORDER BY embedding_sbert <=> :embedding
+            LIMIT :limit
+        """)
         
-        return results
+        result = await db.execute(stmt, {"embedding": str(embedding_list), "limit": top_k})
+        rows = result.fetchall()
+        
+        return {row[0]: float(row[1]) for row in rows}
         
     except Exception as e:
         logger.error(f"SBERT search failed: {e}")
         return {}
-
-
-def create_faiss_index(embeddings: np.ndarray, anime_ids: list, index_type: str = "clip"):
-    """
-    Create and save FAISS index
-    
-    Args:
-        embeddings: Numpy array of embeddings
-        anime_ids: List of anime IDs
-        index_type: Type of index ("clip" or "sbert")
-    """
-    dimension = embeddings.shape[1]
-    
-    # Create index (using flat index for simplicity, can upgrade to IVF for large datasets)
-    index = faiss.IndexFlatIP(dimension)  # Inner product = cosine similarity for normalized vectors
-    index.add(embeddings.astype('float32'))
-    
-    # Save index
-    faiss_dir = Path(settings.faiss_index_path)
-    faiss_dir.mkdir(parents=True, exist_ok=True)
-    
-    index_path = faiss_dir / f"{index_type}_index.faiss"
-    faiss.write_index(index, str(index_path))
-    
-    # Save ID mapping
-    id_mapping = {i: anime_id for i, anime_id in enumerate(anime_ids)}
-    mapping_path = faiss_dir / "anime_id_mapping.pkl"
-    with open(mapping_path, 'wb') as f:
-        pickle.dump(id_mapping, f)
-    
-    logger.info(f"Created and saved {index_type} FAISS index with {index.ntotal} vectors")

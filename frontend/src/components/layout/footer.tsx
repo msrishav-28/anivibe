@@ -51,6 +51,7 @@ export function Footer() {
                   Search
                 </Link>
               </li>
+              {/* Atlas link removed: Feature preserved but inactive
               <li>
                 <Link
                   href="/atlas"
@@ -59,6 +60,7 @@ export function Footer() {
                   Atlas
                 </Link>
               </li>
+              */}
               <li>
                 <Link
                   href="/features"

@@ -1,31 +1,46 @@
 """
-Rating endpoints
+Rating endpoints for Supabase
 """
-from typing import List
+from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
+from uuid import UUID
 
 from app.core.database import get_db
 from app.core.security import get_current_active_user
-from app.core.ml_models import analyze_sentiment
-from app.models.user import User
 from app.models.rating import Rating
 from app.models.anime import Anime
-from app.schemas.rating import RatingCreate, RatingUpdate, RatingResponse
 
 router = APIRouter()
 
 
-@router.post("/", response_model=RatingResponse, status_code=status.HTTP_201_CREATED)
+# Request/Response schemas (inline for simplicity)
+from pydantic import BaseModel, Field
+
+
+class RatingCreate(BaseModel):
+    anime_id: int
+    score: float = Field(..., ge=1, le=10)
+    review: Optional[str] = None
+
+
+class RatingUpdate(BaseModel):
+    score: Optional[float] = Field(None, ge=1, le=10)
+    review: Optional[str] = None
+
+
+@router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_rating(
     rating_data: RatingCreate,
-    current_user: User = Depends(get_current_active_user),
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Create a new rating
     """
+    user_id = UUID(current_user["id"])
+    
     # Check if anime exists
     anime_result = await db.execute(
         select(Anime).filter(Anime.id == rating_data.anime_id)
@@ -41,7 +56,7 @@ async def create_rating(
     existing_result = await db.execute(
         select(Rating).filter(
             and_(
-                Rating.user_id == current_user.id,
+                Rating.user_id == user_id,
                 Rating.anime_id == rating_data.anime_id
             )
         )
@@ -52,33 +67,24 @@ async def create_rating(
             detail="Rating already exists. Use PUT to update."
         )
     
-    # Analyze sentiment if review text provided
-    sentiment_score = None
-    if rating_data.review_text:
-        sentiment_result = analyze_sentiment(rating_data.review_text)
-        # Convert to -1 to 1 scale
-        sentiment_map = {"negative": -1.0, "neutral": 0.0, "positive": 1.0}
-        sentiment_score = sentiment_map.get(sentiment_result["sentiment"], 0.0)
-    
     # Create rating
     rating = Rating(
-        user_id=current_user.id,
+        user_id=user_id,
         anime_id=rating_data.anime_id,
         score=rating_data.score,
-        review_text=rating_data.review_text,
-        review_sentiment=sentiment_score
+        review=rating_data.review
     )
     
     db.add(rating)
     await db.commit()
     await db.refresh(rating)
     
-    return rating
+    return rating.to_dict()
 
 
-@router.get("/", response_model=List[RatingResponse])
+@router.get("/")
 async def get_user_ratings(
-    current_user: User = Depends(get_current_active_user),
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
     skip: int = 0,
     limit: int = 100
@@ -86,32 +92,36 @@ async def get_user_ratings(
     """
     Get current user's ratings
     """
+    user_id = UUID(current_user["id"])
+    
     result = await db.execute(
         select(Rating)
-        .filter(Rating.user_id == current_user.id)
+        .filter(Rating.user_id == user_id)
         .order_by(Rating.created_at.desc())
         .offset(skip)
         .limit(limit)
     )
     ratings = result.scalars().all()
     
-    return ratings
+    return [r.to_dict() for r in ratings]
 
 
-@router.get("/{rating_id}", response_model=RatingResponse)
+@router.get("/{rating_id}")
 async def get_rating(
     rating_id: int,
-    current_user: User = Depends(get_current_active_user),
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Get a specific rating
     """
+    user_id = UUID(current_user["id"])
+    
     result = await db.execute(
         select(Rating).filter(
             and_(
                 Rating.id == rating_id,
-                Rating.user_id == current_user.id
+                Rating.user_id == user_id
             )
         )
     )
@@ -123,24 +133,26 @@ async def get_rating(
             detail="Rating not found"
         )
     
-    return rating
+    return rating.to_dict()
 
 
-@router.put("/{rating_id}", response_model=RatingResponse)
+@router.put("/{rating_id}")
 async def update_rating(
     rating_id: int,
     rating_update: RatingUpdate,
-    current_user: User = Depends(get_current_active_user),
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Update a rating
     """
+    user_id = UUID(current_user["id"])
+    
     result = await db.execute(
         select(Rating).filter(
             and_(
                 Rating.id == rating_id,
-                Rating.user_id == current_user.id
+                Rating.user_id == user_id
             )
         )
     )
@@ -156,32 +168,28 @@ async def update_rating(
     for field, value in rating_update.dict(exclude_unset=True).items():
         setattr(rating, field, value)
     
-    # Re-analyze sentiment if review text updated
-    if rating_update.review_text is not None and rating.review_text:
-        sentiment_result = analyze_sentiment(rating.review_text)
-        sentiment_map = {"negative": -1.0, "neutral": 0.0, "positive": 1.0}
-        rating.review_sentiment = sentiment_map.get(sentiment_result["sentiment"], 0.0)
-    
     await db.commit()
     await db.refresh(rating)
     
-    return rating
+    return rating.to_dict()
 
 
 @router.delete("/{rating_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_rating(
     rating_id: int,
-    current_user: User = Depends(get_current_active_user),
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Delete a rating
     """
+    user_id = UUID(current_user["id"])
+    
     result = await db.execute(
         select(Rating).filter(
             and_(
                 Rating.id == rating_id,
-                Rating.user_id == current_user.id
+                Rating.user_id == user_id
             )
         )
     )

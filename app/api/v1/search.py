@@ -10,6 +10,50 @@ from app.services.semantic_search import semantic_vibe_search
 
 router = APIRouter()
 
+from pydantic import BaseModel
+
+class VisualSearchRequest(BaseModel):
+    image_url: str
+
+@router.post("/visual", response_model=dict)
+async def visual_search(
+    request: VisualSearchRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Visual search using image URL or Base64
+    """
+    from app.services.vector_search import search_by_image
+    from app.models.anime import Anime
+    from sqlalchemy import select
+    
+    # 1. Get similar anime IDs from Vector Service
+    results = await search_by_image(request.image_url, top_k=10)
+    
+    if not results:
+        return {"results": []}
+        
+    # 2. Fetch details from DB
+    anime_ids = list(results.keys())
+    query = select(Anime).filter(Anime.id.in_(anime_ids))
+    db_results = await db.execute(query)
+    anime_list = db_results.scalars().all()
+    
+    # 3. Format response
+    response_data = []
+    for anime in anime_list:
+        response_data.append({
+            "id": anime.id,
+            "title": anime.title,
+            "similarity": results.get(anime.id, 0.0),
+            "image_url": anime.image_url
+        })
+        
+    # Sort by similarity
+    response_data.sort(key=lambda x: x["similarity"], reverse=True)
+    
+    return {"results": response_data}
+
 
 @router.post("/semantic", response_model=RecommendationBatchResponse)
 async def semantic_search(

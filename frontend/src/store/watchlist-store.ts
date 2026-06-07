@@ -6,9 +6,9 @@ interface WatchlistState {
   entries: WatchlistEntry[];
   isLoading: boolean;
   error: string | null;
-  
+
   // Actions
-  fetchWatchlist: (userId?: number, status?: string) => Promise<void>;
+  fetchWatchlist: (userId?: string, status?: string) => Promise<void>;
   addToWatchlist: (animeId: number, status: string) => Promise<void>;
   updateEntry: (entryId: number, data: Partial<WatchlistEntry>) => Promise<void>;
   removeFromWatchlist: (entryId: number) => Promise<void>;
@@ -21,7 +21,7 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
   isLoading: false,
   error: null,
 
-  fetchWatchlist: async (userId?: number, status?: string) => {
+  fetchWatchlist: async (userId?: string, status?: string) => {
     set({ isLoading: true, error: null });
     try {
       const entries = await api.getWatchlist(userId, status);

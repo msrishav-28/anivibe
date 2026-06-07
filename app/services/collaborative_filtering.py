@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 async def get_collaborative_recommendations(
-    user_id: int,
+    user_id: str,
     user_ratings: Dict[int, float],
     top_k: int = 20,
     db: AsyncSession = None

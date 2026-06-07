@@ -1,0 +1,32 @@
+data:
+  processed_dir: data/processed
+
+evaluation:
+  top_k: 10
+  relevant_threshold: 8.0
+
+models:
+  popularity:
+    enabled: true
+  content_based:
+    enabled: true
+  collaborative_filtering:
+    enabled: true
+  hybrid:
+    enabled: true
+    weights:
+      popularity: 0.20
+      content_based: 0.40
+      collaborative_filtering: 0.40
+
+reporting:
+  sample_users:
+    - u001
+    - u002
+    - u003
+
+output:
+  metrics_csv: artifacts/evaluation/metrics.csv
+  metrics_json: artifacts/evaluation/metrics.json
+  metrics_markdown: artifacts/evaluation/metrics.md
+  sample_recommendations_json: artifacts/evaluation/samples.json

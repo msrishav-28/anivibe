@@ -1,34 +1,33 @@
 """
-Rating schemas
+Rating schemas for Supabase
 """
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, Field
 
 
 class RatingBase(BaseModel):
     """Base rating schema"""
     anime_id: int = Field(..., description="Anime ID")
-    score: float = Field(..., ge=0, le=10, description="Rating score (0-10)")
+    score: float = Field(..., ge=1, le=10, description="Rating score (1-10)")
 
 
 class RatingCreate(RatingBase):
     """Schema for creating a rating"""
-    review_text: Optional[str] = Field(None, max_length=5000, description="Review text")
+    review: Optional[str] = Field(None, max_length=5000, description="Review text")
 
 
 class RatingUpdate(BaseModel):
     """Schema for updating a rating"""
-    score: Optional[float] = Field(None, ge=0, le=10)
-    review_text: Optional[str] = Field(None, max_length=5000)
+    score: Optional[float] = Field(None, ge=1, le=10)
+    review: Optional[str] = Field(None, max_length=5000)
 
 
 class RatingResponse(RatingBase):
-    """Rating response schema"""
+    """Rating response schema (Supabase UUID user)"""
     id: int
-    user_id: int
-    review_text: Optional[str] = None
-    review_sentiment: Optional[float] = None
+    user_id: str  # UUID as string
+    review: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     
@@ -38,9 +37,9 @@ class RatingResponse(RatingBase):
 
 class RatingWithAnime(RatingResponse):
     """Rating response with anime details"""
-    anime: dict  # AnimeResponse
+    anime: Optional[dict] = None
 
 
 class BulkRatingCreate(BaseModel):
     """Schema for bulk rating creation"""
-    ratings: list[RatingCreate] = Field(..., max_items=100)
+    ratings: List[RatingCreate] = Field(..., max_length=100)

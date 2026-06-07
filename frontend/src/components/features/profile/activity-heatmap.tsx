@@ -3,44 +3,48 @@
 import { motion } from 'framer-motion';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-
-// Mock data generator for the heatmap
-const generateHeatmapData = () => {
-    const today = new Date();
-    const data = [];
-    // Generate last 365 days
-    for (let i = 364; i >= 0; i--) {
-        const date = new Date(today);
-        date.setDate(date.getDate() - i);
-        // Random intensity 0-4
-        // Make weekends more active specifically for "weeb" realism
-        const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-        const baseChance = isWeekend ? 0.7 : 0.4;
-        const intensity = Math.random() > (1 - baseChance) ? Math.floor(Math.random() * 5) : 0;
-
-        data.push({
-            date: date.toISOString().split('T')[0],
-            intensity, // 0: none, 1: light, 2: medium, 3: high, 4: extreme
-        });
-    }
-    return data;
-};
-
-const heatmapData = generateHeatmapData();
-
-const intensityColors = {
-    0: 'bg-white/5',
-    1: 'bg-primary/20',
-    2: 'bg-primary/40',
-    3: 'bg-primary/70',
-    4: 'bg-primary shadow-[0_0_10px_theme(colors.primary.DEFAULT)]',
-};
-
-import { Card } from '@/components/ui/card';
-
-// ... imports
+import { useAnalytics } from '@/hooks/use-queries';
 
 export function ActivityHeatmap() {
+    const { data: analytics, isLoading } = useAnalytics();
+
+    // Transform API data to heatmap format
+    // Expected API format: [{ date: '2023-01-01', minutes: 120 }, ...]
+    const heatmapData = (() => {
+        if (!analytics) return [];
+
+        // Fill last 365 days with 0
+        const days = [];
+        const today = new Date();
+        const activityMap = new Map(analytics.map((a: any) => [a.date, a.minutes]));
+
+        for (let i = 364; i >= 0; i--) {
+            const date = new Date(today);
+            date.setDate(date.getDate() - i);
+            const dateStr = date.toISOString().split('T')[0];
+            const minutes = activityMap.get(dateStr) || 0;
+
+            // Calculate intensity (0-4) based on minutes
+            // 0 = 0 mins
+            // 1 = 1-20 mins (1 ep)
+            // 2 = 21-60 mins (2-3 eps)
+            // 3 = 61-120 mins (Movie/Bing)
+            // 4 = 120+ mins (Hardcore)
+            let intensity = 0;
+            if (minutes > 0) intensity = 1;
+            if (minutes > 20) intensity = 2;
+            if (minutes > 60) intensity = 3;
+            if (minutes > 120) intensity = 4;
+
+            days.push({ date: dateStr, intensity, minutes });
+        }
+        return days;
+    })();
+
+    if (isLoading) {
+        return <div className="h-[200px] w-full animate-pulse rounded-xl bg-white/5" />;
+    }
+
     return (
         <Card variant="holo" className="w-full overflow-x-auto p-6 border-white/10">
             <div className="flex items-center justify-between mb-4">
@@ -57,7 +61,7 @@ export function ActivityHeatmap() {
             </div>
 
             <div className="flex gap-1 min-w-max">
-                {/* Simple columns logic: 52 columns of 7 days */}
+                {/* 53 Columns x 7 Rows */}
                 {Array.from({ length: 53 }).map((_, colIndex) => (
                     <div key={colIndex} className="flex flex-col gap-1">
                         {Array.from({ length: 7 }).map((_, rowIndex) => {
@@ -83,7 +87,7 @@ export function ActivityHeatmap() {
                                             />
                                         </TooltipTrigger>
                                         <TooltipContent side="top">
-                                            <span className="font-mono">{day.date}</span>: <span className="text-primary-400 font-bold">{day.intensity > 0 ? `${day.intensity * 2} eps` : 'Idle'}</span>
+                                            <span className="font-mono">{day.date}</span>: <span className="text-primary-400 font-bold">{day.minutes} min</span>
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>

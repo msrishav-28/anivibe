@@ -137,12 +137,18 @@ async def search_anime(
     result = await db.execute(query)
     anime_list = result.scalars().all()
     
+    pages = (total + search.limit - 1) // search.limit if total else 0
+    anime_data = [a.to_dict(include_relationships=True) for a in anime_list]
+    
     return {
-        "results": [a.to_dict(include_relationships=True) for a in anime_list],
+        "items": anime_data,  # Frontend convention
+        "results": anime_data,  # Backward compatibility
         "total": total,
         "page": search.page,
         "limit": search.limit,
-        "pages": (total + search.limit - 1) // search.limit
+        "pages": pages,
+        "has_next": search.page < pages,
+        "has_prev": search.page > 1
     }
 
 
@@ -233,3 +239,55 @@ async def get_random_anime(
         )
     
     return anime.to_dict(include_relationships=True)
+
+
+@router.get("/trending", response_model=dict)
+async def get_trending_anime(
+    limit: int = Query(20, ge=1, le=50),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get trending anime (based on recent popularity/activity)
+    Mapping to Search Logic: Sort by Popularity Descending
+    """
+    # Reuse search logic manually or call internal function (cleaner to query direct)
+    query = select(Anime).options(
+        selectinload(Anime.genres),
+        selectinload(Anime.studios),
+        selectinload(Anime.tags)
+    ).order_by(Anime.popularity.asc()).limit(limit) # Lower popularity number = more popular usually in MAL, but let's assume 'members' desc
+    
+    # Actually 'popularity' field in MAL is ranking (1 is best). So ASC is correct.
+    
+    result = await db.execute(query)
+    anime_list = result.scalars().all()
+    anime_data = [a.to_dict(include_relationships=True) for a in anime_list]
+    
+    return {
+        "items": anime_data,
+        "total": len(anime_data)
+    }
+
+
+@router.get("/popular", response_model=dict)
+async def get_popular_anime(
+    limit: int = Query(20, ge=1, le=50),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get all-time popular anime
+    """
+    query = select(Anime).options(
+        selectinload(Anime.genres),
+        selectinload(Anime.studios),
+        selectinload(Anime.tags)
+    ).order_by(Anime.members.desc()).limit(limit)
+    
+    result = await db.execute(query)
+    anime_list = result.scalars().all()
+    anime_data = [a.to_dict(include_relationships=True) for a in anime_list]
+    
+    return {
+        "items": anime_data,
+        "total": len(anime_data)
+    }

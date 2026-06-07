@@ -1,46 +1,45 @@
 """
-Watchlist schemas
+Watchlist schemas for Supabase
 """
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, Field
+
+
+# Valid status values
+WATCHLIST_STATUSES = ['watching', 'completed', 'on_hold', 'dropped', 'plan_to_watch']
 
 
 class WatchlistEntryBase(BaseModel):
     """Base watchlist entry schema"""
     anime_id: int = Field(..., description="Anime ID")
-    status: str = Field(..., description="Watch status")
+    status: str = Field(default="plan_to_watch", description="Watch status")
 
 
 class WatchlistEntryCreate(WatchlistEntryBase):
     """Schema for creating a watchlist entry"""
-    episodes_watched: int = Field(0, ge=0)
-    is_favorite: bool = False
+    progress: int = Field(0, ge=0, description="Episodes watched")
     notes: Optional[str] = Field(None, max_length=1000)
 
 
 class WatchlistEntryUpdate(BaseModel):
     """Schema for updating a watchlist entry"""
     status: Optional[str] = None
-    episodes_watched: Optional[int] = Field(None, ge=0)
-    is_favorite: Optional[bool] = None
-    is_rewatching: Optional[bool] = None
+    progress: Optional[int] = Field(None, ge=0)
     notes: Optional[str] = Field(None, max_length=1000)
 
 
 class WatchlistEntryResponse(WatchlistEntryBase):
-    """Watchlist entry response schema"""
+    """Watchlist entry response schema (Supabase UUID user)"""
     id: int
-    user_id: int
-    episodes_watched: int
-    is_favorite: bool
-    is_rewatching: bool
+    user_id: str  # UUID as string
+    progress: int = 0
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     notes: Optional[str] = None
     created_at: datetime
     updated_at: datetime
-    anime: Optional[dict] = None  # AnimeResponse
+    anime: Optional[dict] = None
     
     class Config:
         from_attributes = True

@@ -2,14 +2,17 @@
 Explainability API endpoints
 Provide explanations for recommendations
 """
+from typing import Dict, Any, Optional, List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from pydantic import BaseModel
-from typing import Optional, Dict, Any
+from uuid import UUID
 
 from app.core.database import get_db
 from app.core.security import get_current_active_user
-from app.models.user import User
+from app.models.anime import Anime
+from app.models.rating import Rating
 from app.services.explainability import explain_recommendation
 
 router = APIRouter()
@@ -34,7 +37,7 @@ class ExplanationResponse(BaseModel):
 @router.post("/recommendation", response_model=ExplanationResponse)
 async def explain_recommendation_endpoint(
     request: ExplanationRequest,
-    current_user: User = Depends(get_current_active_user),
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -61,7 +64,7 @@ async def explain_recommendation_endpoint(
 @router.get("/anime/{anime_id}/why-recommended")
 async def why_recommended(
     anime_id: int,
-    current_user: User = Depends(get_current_active_user),
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -69,27 +72,34 @@ async def why_recommended(
     
     Analyzes user profile and anime features to explain potential match
     """
-    from sqlalchemy import select
-    from app.models.anime import Anime
-    from app.models.rating import Rating
+    from sqlalchemy.orm import selectinload
     
-    # Get anime
-    result = await db.execute(select(Anime).filter(Anime.id == anime_id))
+    # Get anime with relationships
+    result = await db.execute(
+        select(Anime)
+        .options(
+            selectinload(Anime.genres),
+            selectinload(Anime.studios),
+            selectinload(Anime.tags)
+        )
+        .filter(Anime.id == anime_id)
+    )
     anime = result.scalar_one_or_none()
     
     if not anime:
         raise HTTPException(status_code=404, detail="Anime not found")
     
     # Get user's ratings for analysis
+    user_id = UUID(current_user["id"])
     ratings_result = await db.execute(
-        select(Rating).filter(Rating.user_id == current_user.id).limit(10)
+        select(Rating).filter(Rating.user_id == user_id).limit(10)
     )
     user_ratings = ratings_result.scalars().all()
     
     # Build context
     user_preferences = {
         "average_rating": sum(r.score for r in user_ratings) / len(user_ratings) if user_ratings else 0,
-        "favorite_genres": [],  # Could be computed from ratings
+        "favorite_genres": [],
         "favorite_studios": []
     }
     

@@ -1,22 +1,29 @@
 """
-User model
+User/Profile model for Supabase
 """
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, Float
+from sqlalchemy import Column, String, Boolean, DateTime, Text, Float, Integer
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
+import uuid
 
 from app.core.database import Base
 
 
-class User(Base):
-    """User account model"""
+class Profile(Base):
+    """
+    User profile model - extends Supabase auth.users.
     
-    __tablename__ = "users"
+    The ID is a UUID that references auth.users(id) in Supabase.
+    Profile is automatically created when a user signs up via trigger.
+    """
     
-    id = Column(Integer, primary_key=True, index=True)
+    __tablename__ = "profiles"
+    
+    # Primary key is UUID referencing auth.users
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     username = Column(String(50), unique=True, index=True, nullable=False)
-    email = Column(String(255), unique=True, index=True, nullable=False)
-    hashed_password = Column(String(255), nullable=False)
+    email = Column(String(255), nullable=False)
     
     # Profile
     full_name = Column(String(100), nullable=True)
@@ -26,18 +33,12 @@ class User(Base):
     # Account status
     is_active = Column(Boolean, default=True, nullable=False)
     is_verified = Column(Boolean, default=False, nullable=False)
-    is_superuser = Column(Boolean, default=False, nullable=False)
     
     # External integrations
     mal_username = Column(String(100), nullable=True)
     mal_user_id = Column(Integer, nullable=True)
     anilist_username = Column(String(100), nullable=True)
     anilist_user_id = Column(Integer, nullable=True)
-    
-    # API access
-    api_key = Column(String(100), unique=True, nullable=True)
-    api_calls_count = Column(Integer, default=0)
-    api_calls_limit = Column(Integer, default=1000)
     
     # Preferences
     preferred_language = Column(String(10), default="en")
@@ -58,12 +59,13 @@ class User(Base):
     watchlist = relationship("WatchlistEntry", back_populates="user", cascade="all, delete-orphan")
     
     def __repr__(self):
-        return f"<User(id={self.id}, username='{self.username}')>"
+        return f"<Profile(id={self.id}, username='{self.username}')>"
     
     def to_dict(self):
         """Convert to dictionary"""
         return {
-            "id": self.id,
+            "id": str(self.id),
+            "user_id": str(self.id),  # Alias for frontend compatibility
             "username": self.username,
             "email": self.email,
             "full_name": self.full_name,
@@ -76,6 +78,13 @@ class User(Base):
             "anime_watched": self.anime_watched,
             "episodes_watched": self.episodes_watched,
             "watch_time_hours": self.watch_time_hours,
+            "preferred_language": self.preferred_language,
+            "show_nsfw": self.show_nsfw,
             "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "last_login": self.last_login.isoformat() if self.last_login else None
         }
+
+
+# Alias for backwards compatibility
+User = Profile

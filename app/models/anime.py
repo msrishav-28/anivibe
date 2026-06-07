@@ -4,6 +4,7 @@ Anime and related models
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Text, Float, Boolean, DateTime, Table, ForeignKey, Enum as SQLEnum
 from sqlalchemy.orm import relationship
+from pgvector.sqlalchemy import Vector
 import enum
 
 from app.core.database import Base
@@ -117,6 +118,12 @@ class Anime(Base):
     # Computed fields
     popularity_score = Column(Float, nullable=True)  # Computed score for hidden gem discovery
     
+    # Vector Embeddings (PGVector)
+    # CLIP ViT-B-32 = 512 dimensions
+    embedding_clip = Column(Vector(512), nullable=True)
+    # SBERT all-MiniLM-L6-v2 = 384 dimensions
+    embedding_sbert = Column(Vector(384), nullable=True)
+    
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
@@ -136,6 +143,7 @@ class Anime(Base):
         """Convert to dictionary"""
         data = {
             "id": self.id,
+            "anime_id": self.id,  # Alias for frontend compatibility
             "title": self.title,
             "title_english": self.title_english,
             "title_japanese": self.title_japanese,
